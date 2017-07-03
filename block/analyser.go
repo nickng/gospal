@@ -1,4 +1,4 @@
-// package block provides the Analyser interface for blocks and supporting utils.
+// Package block provides the Analyser interface for blocks and supporting utils.
 package block
 
 import "golang.org/x/tools/go/ssa"
