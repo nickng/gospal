@@ -119,11 +119,12 @@ func (s *Store) GetObj(k Key) ssa.Value {
 
 func (s *Store) String() string {
 	var buf bytes.Buffer
-	buf.WriteString("-----\n")
+	buf.WriteString("┌─────┄ name: val type ┄──────\n")
 	for k, v := range s.names {
-		buf.WriteString(fmt.Sprintf("%v:\t%v\t%s\n", k.Name(), v.UniqName(), k.Type().String()))
+		buf.WriteString(fmt.Sprintf("│ %v:\t%v\t%s\n",
+			k.Name(), v.UniqName(), k.Type().String()))
 	}
-	buf.WriteString("-----\n")
+	buf.WriteString("└─────────────────────────────\n")
 	return buf.String()
 }
 
