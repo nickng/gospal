@@ -1,6 +1,7 @@
 package migoinfer
 
 import (
+	"github.com/fatih/color"
 	"github.com/nickng/gospal/block"
 	"github.com/nickng/gospal/callctx"
 	"github.com/nickng/gospal/funcs"
@@ -17,6 +18,7 @@ type Function struct {
 	Callee *funcs.Instance // Instance of this function.
 
 	block.Analyser // Function body analyser.
+	*Logger
 }
 
 // NewFunction creates a new function visitor.
@@ -44,4 +46,15 @@ func (f *Function) EnterFunc(fn *ssa.Function) {
 }
 
 func (f *Function) ExitFunc(fn *ssa.Function) {
+}
+
+// SetLogger sets logger for Function and its child block.Analyser.
+func (f *Function) SetLogger(l *Logger) {
+	f.Logger = &Logger{
+		SugaredLogger: l.SugaredLogger,
+		module:        color.CyanString("func "),
+	}
+	if ls, ok := f.Analyser.(LogSetter); ok {
+		ls.SetLogger(f.Logger)
+	}
 }

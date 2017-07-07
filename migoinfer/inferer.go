@@ -24,6 +24,7 @@ type Inferer struct {
 
 	outWriter io.Writer // Output stream.
 	errWriter io.Writer // Error stream.
+	*migoinfer.Logger
 }
 
 // New returns a new Inferer, and uses w for logging messages.
@@ -35,6 +36,7 @@ func New(info *ssa.Info, w io.Writer) *Inferer {
 		Raw:       false,
 		outWriter: ioutil.Discard,
 		errWriter: ioutil.Discard,
+		Logger:    newLogger(),
 	}
 	if w != nil {
 		inferer.errWriter = w
@@ -43,8 +45,11 @@ func New(info *ssa.Info, w io.Writer) *Inferer {
 }
 
 func (i *Inferer) Analyse() {
+	// Sync error ignored. See https://github.com/uber-go/zap/issues/328
+	defer i.Logger.Sync()
 
 	pkg := migoinfer.NewPackage(&i.Env)
+	pkg.SetLogger(i.Logger)
 	// Package/global variables initialisation.
 	for _, p := range i.Info.Prog.AllPackages() {
 		pkg.InitGlobals(p)
@@ -64,6 +69,7 @@ func (i *Inferer) Analyse() {
 		if mainFn := main.Func("main"); mainFn != nil {
 			mainDef := funcs.MakeCall(funcs.MakeDefinition(mainFn), nil, nil)
 			mainFnAnalyser := migoinfer.NewFunction(mainDef, &i.Env, ctx)
+			mainFnAnalyser.SetLogger(i.Logger)
 			mainFnAnalyser.EnterFunc(mainDef.Function())
 		}
 	}
@@ -82,3 +88,9 @@ func (i *Inferer) Analyse() {
 		}
 	}
 }
+
+// AddLogFiles extends current Logger and writes additional log to files.
+func (i *Inferer) AddLogFiles(file ...string) {
+	i.Logger = newFileLogger(file...)
+}
+

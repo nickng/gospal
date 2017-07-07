@@ -1,6 +1,7 @@
 package migoinfer
 
 import (
+	"github.com/fatih/color"
 	"github.com/nickng/gospal/callctx"
 	"github.com/nickng/gospal/funcs"
 	"github.com/nickng/migo"
@@ -15,6 +16,7 @@ type Instruction struct {
 	Callee *funcs.Instance // Instance of this function.
 
 	MiGo *migo.Function // MiGo function definition of current block.
+	*Logger
 }
 
 func NewInstruction(callee *funcs.Instance, env *Environment, ctx callctx.Context, migoFn *migo.Function) *Instruction {
@@ -133,4 +135,12 @@ func (v *Instruction) VisitTypeAssert(instr *ssa.TypeAssert) {
 }
 
 func (v *Instruction) VisitUnOp(instr *ssa.UnOp) {
+}
+
+// SetLogger sets logger for Instruction.
+func (v *Instruction) SetLogger(l *Logger) {
+	v.Logger = &Logger{
+		SugaredLogger: l.SugaredLogger,
+		module:        color.RedString("instr"),
+	}
 }

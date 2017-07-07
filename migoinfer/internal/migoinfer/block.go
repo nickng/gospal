@@ -3,6 +3,7 @@ package migoinfer
 import (
 	"fmt"
 
+	"github.com/fatih/color"
 	"github.com/nickng/gospal/block"
 	"github.com/nickng/gospal/callctx"
 	"github.com/nickng/gospal/funcs"
@@ -24,6 +25,7 @@ type Block struct {
 
 	Env    *Environment    // Program environment.
 	Callee *funcs.Instance // Instance of this function.
+	*Logger
 }
 
 func NewBlock(fn *funcs.Instance, env *Environment, ctx callctx.Context) *Block {
@@ -67,4 +69,12 @@ func (b *Block) CurrBlk() *ssa.BasicBlock {
 
 func (b *Block) PrevBlk() *ssa.BasicBlock {
 	return nil
+}
+
+// SetLogger sets logger for Block.
+func (b *Block) SetLogger(l *Logger) {
+	b.Logger = &Logger{
+		SugaredLogger: l.SugaredLogger,
+		module:        color.GreenString("block"),
+	}
 }
