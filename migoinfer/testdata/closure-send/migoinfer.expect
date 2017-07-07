@@ -1,0 +1,7 @@
+def main.main():
+    let t2 = newchan main.main0.t2_chan0, 0;
+    spawn main.main$1(t2);
+    recv t2;
+def main.main$1(ch):
+    send ch;
+

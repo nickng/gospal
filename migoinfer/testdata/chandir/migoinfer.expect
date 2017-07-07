@@ -1,0 +1,9 @@
+def main.main():
+    let t0 = newchan main.main0.t0_chan0, 0;
+    spawn main.SendOnly(t0);
+    call main.RecvOnly(t0);
+def main.SendOnly(ch):
+    send ch;
+def main.RecvOnly(ch):
+    recv ch;
+

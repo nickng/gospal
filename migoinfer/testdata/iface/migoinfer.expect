@@ -1,0 +1,13 @@
+def main.main():
+    let t2 = newchan main.main0.t2_chan1, 1;
+    call main.Send(t2);
+    call main.Recv(t2);
+    call main.Recv(t2);
+    spawn main.Send(t2);
+    spawn main.Recv(t2);
+    call main.Send(t2);
+    call main.Recv(t2);
+def main.Send(t1):
+    send t1;
+def main.Recv(t1):
+    recv t1;

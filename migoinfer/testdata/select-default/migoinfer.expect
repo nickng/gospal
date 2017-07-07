@@ -1,0 +1,9 @@
+def main.main():
+    let t0 = newchan main.main0.t0_chan0, 0;
+    select
+      case send t0;
+      case recv t0; call main.main#3(t0);
+      case tau;
+    endselect;
+def main.main#3(t0):
+    tau;

@@ -1,0 +1,11 @@
+def main.main():
+    let t0 = newchan main.newch0.t0_chan1, 1;
+    let t1 = newchan main.newch1.t0_chan1, 1;
+    send t1;
+    recv t1;
+    send t0;
+    let t3_0 = newchan main.setch0.t1_chan1, 1;
+    let t4_0 = newchan main.setch1.t1_chan1, 1;
+    send t4_0;
+    recv t4_0;
+    send t3_0;

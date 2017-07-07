@@ -1,0 +1,19 @@
+def main.main():
+    let t0 = newchan main.main0.t0_chan0, 0;
+    let t1 = newchan main.main0.t1_chan0, 0;
+    call main.main#3(t0, t1);
+def main.main#1(t0, t1):
+    send t0;
+    call main.main#10(t0, t1);
+def main.main#2(t0, t1):
+    send t1;
+def main.main#3(t0, t1):
+    ifFor (int t4 = 0; ((0<t4) && (t4==1))||((!(0<t4) && (t4<10)) && (t4==1))||(((0<t4) && (!(t4==1)) && (t4==3) && (t4==2)))||((!(0<t4) && (t4<10) && (!(t4==1)) && (t4==3) && (t4==2))); t4 = t4 + 1) then call main.main#1(t0, t1); else call main.main#2(t0, t1); endif;
+def main.main#8(t0, t1):
+    recv t0;
+    call main.main#10(t0, t1);
+def main.main#9(t0, t1):
+    recv t1;
+    call main.main#3(t0, t1);
+def main.main#10(t0, t1):
+    ifFor (int t17 = 100; (t17>=3); t17 = t17 - 1) then call main.main#8(t0, t1); else call main.main#9(t0, t1); endif;

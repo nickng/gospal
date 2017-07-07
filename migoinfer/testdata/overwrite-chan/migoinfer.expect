@@ -1,0 +1,19 @@
+def main.main():
+    let t0 = newchan main.main0.t0_chan0, 0;
+    let t1 = newchan main.main0.t1_chan0, 0;
+    spawn main.forward(t0, t1);
+    call main.main#3(t0, t1);
+def main.forward(from, to):
+    recv from;
+    send to;
+def main.main$1(ch0):
+    send ch0;
+def main.main#1(t0, t6):
+    let t2 = newchan main.main0.t2_chan0, 0;
+    spawn main.forward(t6, t2);
+    call main.main#3(t0, t2);
+def main.main#2(t0, t6):
+    spawn main.main$1(t0);
+    recv t6;
+def main.main#3(t0, t6):
+    ifFor (int t7 = 0; (t7<1); t7 = t7 + 1) then call main.main#1(t0, t6); else call main.main#2(t0, t6); endif;
