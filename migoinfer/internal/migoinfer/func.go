@@ -18,6 +18,7 @@ type Function struct {
 	Env             *Environment    // Program environment.
 
 	block.Analyser // Function body analyser.
+	*Exported
 	*Logger
 }
 
@@ -33,11 +34,13 @@ type Function struct {
 func NewFunction(call *funcs.Call, ctx callctx.Context, env *Environment) *Function {
 	callee := funcs.Instantiate(call)
 	f := Function{
-		Callee:  callee,
-		Context: callctx.Switch(ctx, callee),
-		Env:     env,
+		Callee:   callee,
+		Context:  callctx.Switch(ctx, callee),
+		Env:      env,
+		Exported: new(Exported),
 	}
 	b := NewBlock(f.Callee, f.Context, f.Env)
+	b.Exported = f.Exported
 	f.Analyser = b
 	return &f
 }
