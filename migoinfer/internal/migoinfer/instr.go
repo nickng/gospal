@@ -170,6 +170,17 @@ func (v *Instruction) VisitInstr(instr ssa.Instruction) {
 }
 
 func (v *Instruction) VisitAlloc(instr *ssa.Alloc) {
+	t := instr.Type().(*types.Pointer).Elem()
+	switch t := t.Underlying().(type) {
+	case *types.Struct:
+		v.Logger.Debugf("%s Allocate struct: %T", v.Logger.Module(), t)
+		if updater, ok := v.Context.(callctx.Updater); ok {
+			updater.PutUniq(instr, structs.New(v.Callee, instr))
+		}
+	default:
+		v.Logger.Debugf("%s Alloc %s = type %s (delay write)",
+			v.Logger.Module(), instr.Name(), t.String())
+	}
 }
 
 func (v *Instruction) VisitBinOp(instr *ssa.BinOp) {
@@ -191,6 +202,9 @@ func (v *Instruction) VisitChangeInterface(instr *ssa.ChangeInterface) {
 }
 
 func (v *Instruction) VisitChangeType(instr *ssa.ChangeType) {
+	if _, ok := instr.X.Type().(*types.Chan); ok {
+		v.Put(instr, v.Get(instr.X))
+	}
 }
 
 func (v *Instruction) VisitConvert(instr *ssa.Convert) {
@@ -254,6 +268,9 @@ func (v *Instruction) VisitMakeClosure(instr *ssa.MakeClosure) {
 }
 
 func (v *Instruction) VisitMakeInterface(instr *ssa.MakeInterface) {
+	iface := v.Get(instr.X)
+	v.Logger.Debugf("%s iface → %v", v.Logger.Module(), iface)
+	v.Put(instr, iface)
 }
 
 func (v *Instruction) VisitMakeMap(instr *ssa.MakeMap) {
@@ -292,12 +309,23 @@ func (v *Instruction) VisitSend(instr *ssa.Send) {
 }
 
 func (v *Instruction) VisitSlice(instr *ssa.Slice) {
+	handle := v.Get(instr.X)
+	if instr.Low == nil && instr.High == nil { // Full slice.
+		v.Put(instr, handle)
+	}
 }
 
 func (v *Instruction) VisitStore(instr *ssa.Store) {
+	val := v.Get(instr.Val)
+	if val != nil {
+		v.Put(instr.Addr, val)
+	} else {
+		v.Logger.Fatalf("Store: %s is not defined", instr.Val.Name())
+	}
 }
 
 func (v *Instruction) VisitTypeAssert(instr *ssa.TypeAssert) {
+	v.Put(instr, v.Get(instr.X))
 }
 
 func (v *Instruction) VisitUnOp(instr *ssa.UnOp) {
@@ -413,6 +441,32 @@ func (v *Instruction) doGo(g *ssa.Go, def *funcs.Definition) {
 		}
 	}
 	v.MiGo.AddStmts(stmt)
+}
+
+// getStruct returns the field variable and field index if the given value is a
+// struct field.
+func getStruct(value ssa.Value) (ssa.Value, int, bool) {
+	switch value := value.(type) {
+	case *ssa.FieldAddr:
+		return value.X, value.Field, true
+	case *ssa.UnOp:
+		if value.Op == token.MUL {
+			return getStruct(value.X)
+		}
+	}
+	return nil, -1, false
+}
+
+// getParameterName looks for a parent struct or returns the origin value if it
+// is not part of a struct.
+func (v *Instruction) getParameterName(value ssa.Value) migo.NamedVar {
+	if str, fld, ok := getStruct(value); ok {
+		if s, ok := v.Get(str).(*structs.Struct); ok {
+			return s.Fields[fld]
+		}
+	}
+	// No parameter name.
+	return value
 }
 
 // newChan creates a new channel instance
