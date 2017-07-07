@@ -3,7 +3,6 @@ package migoinfer
 import (
 	"go/token"
 	"go/types"
-	"log"
 
 	"github.com/fatih/color"
 	"github.com/nickng/gospal/callctx"
@@ -223,6 +222,35 @@ func (v *Instruction) VisitField(instr *ssa.Field) {
 }
 
 func (v *Instruction) VisitFieldAddr(instr *ssa.FieldAddr) {
+	switch struc := v.Get(instr.X).(type) {
+	case *structs.Struct:
+		if field := struc.Fields[instr.Field]; field != nil {
+			if fieldVal := v.Get(field); fieldVal != nil {
+				v.Logger.Debugf("%s Field %s exists, replacing with %s",
+					v.Logger.Module(), field, instr.Name())
+				v.Put(instr, fieldVal)
+				// If field is a FieldParam, replace field key and export.
+				if _, ok := field.(structs.FieldParam); ok {
+					struc.Fields[instr.Field] = instr
+					if isChan(instr) {
+						v.Export(instr)
+					}
+				}
+			}
+		} else {
+			// Put object in storage.
+			if updater, ok := v.Context.(callctx.Updater); ok {
+				updater.PutObj(instr, instr.X)
+			}
+			struc.Fields[instr.Field] = instr
+		}
+	case *store.MockValue:
+		v.Logger.Debugf("%s struct undefined\n\t%s",
+			v.Logger.Module(), v.Env.getPos(instr))
+	default:
+		v.Logger.Warnf("%s FieldAddr: %v is not a struct\t%s\n\t%s",
+			v.Logger.Module(), instr.X, instr.X.Type().Underlying(), v.Env.getPos(instr))
+	}
 }
 
 func (v *Instruction) VisitGo(instr *ssa.Go) {
@@ -254,6 +282,36 @@ func (v *Instruction) VisitLookup(instr *ssa.Lookup) {
 
 func (v *Instruction) VisitMakeChan(instr *ssa.MakeChan) {
 	newch := v.newChan(instr)
+	isReturnValue := v.Callee.Definition().IsReturn(instr)
+	var isParameter bool
+	str, field, isField := getStruct(instr)
+	if !isField { // Could be that the field is stored by *t0 = make(chan)
+		for _, ref := range *instr.Referrers() {
+			switch ref := ref.(type) {
+			case *ssa.Store:
+				if ref.Val == instr {
+					str, field, isField = getStruct(ref.Addr)
+				}
+			}
+		}
+	}
+	if isField {
+		for _, param := range v.Callee.Definition().Parameters[:v.Callee.Definition().NParam+v.Callee.Definition().NFreeVar] {
+			if param == str {
+				isParameter = true
+			}
+		}
+		if s, ok := v.Get(str).(*structs.Struct); ok {
+			s.Fields[field] = instr
+		}
+	}
+	if isReturnValue || isParameter {
+		v.Logger.Debugf("%s %s = MakeChan skipped\n\treturn value? %t\n\tparameter? %t",
+			v.Logger.Module(),
+			instr.Name(), isReturnValue, isParameter)
+		v.MiGo.AddStmts(&migo.TauStatement{})
+		return
+	}
 	v.Put(instr, newch)
 	v.Export(instr)
 	v.MiGo.AddStmts(migoNewChan(instr, newch))
@@ -409,6 +467,28 @@ func (v *Instruction) doCall(c *ssa.Call, def *funcs.Definition) {
 	fn.EnterFunc(call.Function())
 	stmt := &migo.CallStatement{Name: fn.Callee.Name()}
 
+	v.bindCallParameters(call, fn)
+
+	// Before adding call statement, handle return values.
+	for i := range call.Parameters[call.NParam()+call.NBind():] {
+		callerName := call.Return(i)
+		caller := v.Get(callerName)
+		callee := fn.Get(call.Definition().Return(i))
+		if caller != callee {
+			v.Put(callerName, callee)
+			if isChan(callerName) { // Caller is a channel.
+				if _, ok := callerName.(store.Unused); !ok {
+					if calleeCh, ok := callee.(*chans.Chan); ok {
+						v.MiGo.AddStmts(migoNewChan(callerName, calleeCh))
+						v.Export(callerName) // Export caller name
+					} else {
+						// Callee does not initialise channel.
+					}
+				}
+			}
+		}
+	}
+
 	// Convert type Chan parameters to MiGo parameters.
 	migoParams := paramsToMigoParam(v, fn, call)
 	stmt.AddParams(migoParams...)
@@ -431,6 +511,8 @@ func (v *Instruction) doGo(g *ssa.Go, def *funcs.Definition) {
 
 	fn.EnterFunc(call.Function())
 	stmt := &migo.SpawnStatement{Name: fn.Callee.Name()}
+
+	v.bindCallParameters(call, fn)
 
 	// Convert type Chan parameters to MiGo parameters.
 	migoParams := paramsToMigoParam(v, fn, call)
@@ -597,4 +679,72 @@ func (v *Instruction) selBodyBlock(sel *ssa.Select, caseIdx int, testBlk *ssa.Ba
 			v.Logger.Module(), v.Env.getPos(inst))
 	}
 	return nil, nil
+}
+
+// bindCallParameters takes a function call and matches up the definition
+// paramters with the call arguments.
+func (v *Instruction) bindCallParameters(call *funcs.Call, fn *Function) {
+	handleNilChanArg := func(arg, param store.Key) {
+		v.Logger.Infof("%s Handle nilchan parameter: %s=%#v, %s=%v",
+			v.Logger.Module(), arg.Name(), arg, param.Name(), param)
+		switch calleeChan := fn.Get(param).(type) {
+		case *chans.Chan:
+			v.MiGo.AddStmts(migoNewChan(arg, calleeChan))
+			v.Export(arg)
+		case store.MockValue:
+			// Unchanged.
+		}
+	}
+
+	// Before adding call statement, handle nil parameters.
+	for i := range call.Parameters[:call.NParam()+call.NBind()] {
+		arg, param := call.Param(i), call.Definition().Param(i)
+		if isStruct(arg) {
+			argStruct := v.Get(arg)
+			paramStruct := fn.Get(param)
+			if mock, ok := argStruct.(store.MockValue); ok {
+				v.Logger.Warnf("%s %s is a nil struct (arg) (type:%s)",
+					v.Logger.Module(), arg.Name(), arg.Type().String())
+				argStruct = structs.New(mock, arg.(ssa.Value))
+			} else if _, ok := argStruct.(*structs.Struct); !ok {
+				argStruct = structs.New(mock, arg.(ssa.Value))
+			}
+			if mock, ok := paramStruct.(store.MockValue); ok {
+				v.Logger.Warnf("%s %s is a nil struct (param) (type:%s)",
+					v.Logger.Module(), param.Name(), param.Type().String())
+				paramStruct = structs.New(mock, param.(ssa.Value))
+			} else if _, ok := paramStruct.(*structs.Struct); !ok {
+				paramStruct = structs.New(mock, arg.(ssa.Value))
+			}
+			argFields := argStruct.(*structs.Struct).Expand()
+			paramFields := paramStruct.(*structs.Struct).Expand()
+			for i := 0; i < len(argFields); i++ {
+				switch argField := argFields[i].(type) {
+				case structs.SField:
+					paramField := paramFields[i].(structs.SField)
+					if isChan(argFields[i]) {
+						// This is really nil and not MockValue.
+						if argField.Key == nil && paramField.Key != nil {
+							handleNilChanArg(argField, paramFields[i].(structs.SField).Key) // Use actual param.
+						}
+					}
+					// Field defined inside function, add defined value and
+					// update struct.Fields
+					if argField.Key == nil && paramField.Key != nil {
+						v.Put(argField, fn.Get(paramField.Key))
+						argField.Struct.Fields[argField.Index] = argField
+					}
+				case *structs.Struct:
+					// Ignore.
+				}
+			}
+		}
+		if isChan(arg) {
+			if _, ok := v.Get(arg).(store.MockValue); ok {
+				if _, isPhi := arg.(*ssa.Phi); !isPhi {
+					handleNilChanArg(arg, param)
+				}
+			}
+		}
+	}
 }
