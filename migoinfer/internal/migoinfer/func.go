@@ -39,6 +39,11 @@ func NewFunction(call *funcs.Call, ctx callctx.Context, env *Environment) *Funct
 		Env:      env,
 		Exported: new(Exported),
 	}
+	for _, param := range f.Callee.Definition().Parameters {
+		if isChan(param) {
+			f.Export(param)
+		}
+	}
 	b := NewBlock(f.Callee, f.Context, f.Env)
 	b.Exported = f.Exported
 	f.Analyser = b
