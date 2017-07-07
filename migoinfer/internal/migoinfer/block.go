@@ -251,17 +251,20 @@ func (b *Block) mergePhi(data *BlockData, instr *ssa.Phi) {
 			edge = instr.Edges[i]
 		}
 	}
-	b.Logger.Debugf("%s Replace φ edges %s with %s in parameter",
-		b.Logger.Module(), edge.Name(), instr.Name())
-	for i := range migoFn.Params {
-		if edge.Name() == migoFn.Params[i].Caller.Name() {
-			// Update def parameters.
-			migoFn.Params[i].Callee = instr
-			// Update context.
-			b.Context.Put(instr, b.Context.Get(edge))
-			// Update exported names.
-			b.Unexport(edge)
-			b.Export(instr)
+	// If edge is in SSA do replace edges and parameters.
+	if edge != nil {
+		b.Logger.Debugf("%s Replace φ edges %s with %s in parameter",
+			b.Logger.Module(), edge.Name(), instr.Name())
+		for i := range migoFn.Params {
+			if edge.Name() == migoFn.Params[i].Caller.Name() {
+				// Update def parameters.
+				migoFn.Params[i].Callee = instr
+				// Update context.
+				b.Context.Put(instr, b.Context.Get(edge))
+				// Update exported names.
+				b.Unexport(edge)
+				b.Export(instr)
+			}
 		}
 	}
 }

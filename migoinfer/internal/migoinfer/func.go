@@ -45,7 +45,9 @@ func NewFunction(call *funcs.Call, ctx callctx.Context, env *Environment) *Funct
 		}
 	}
 	b := NewBlock(f.Callee, f.Context, f.Env)
-	b.Exported = f.Exported
+	if b != nil {
+		b.Exported = f.Exported
+	}
 	f.Analyser = b
 	return &f
 }
@@ -71,9 +73,9 @@ func (f *Function) ExitFunc(fn *ssa.Function) {
 	if fn != nil {
 		f.Logger.Debugf("%s Exit %s", f.Logger.Module(), fn.Name())
 	}
-	if f.Analyser != nil {
+	if b, ok := f.Analyser.(*Block); b != nil && ok {
 		// Since a function is complete analysed, we can print its content.
-		for _, data := range f.Analyser.(*Block).data {
+		for _, data := range b.data {
 			f.Env.Prog.AddFunction(data.migoFunc)
 		}
 	}
@@ -85,7 +87,9 @@ func (f *Function) SetLogger(l *Logger) {
 		SugaredLogger: l.SugaredLogger,
 		module:        color.CyanString("func "),
 	}
-	if ls, ok := f.Analyser.(LogSetter); ok {
-		ls.SetLogger(f.Logger)
+	if b, ok := f.Analyser.(*Block); b != nil && ok {
+		if ls, ok := f.Analyser.(LogSetter); f.Analyser != nil && ok {
+			ls.SetLogger(f.Logger)
+		}
 	}
 }
