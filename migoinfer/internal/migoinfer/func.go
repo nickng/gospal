@@ -12,10 +12,9 @@ import (
 // It does not deal with the body of the functions, but serves as a location for
 // context switching.
 type Function struct {
-	callctx.Context // Function context. Initially parameters, expands as program evolve.
-
-	Env    *Environment    // Program environment.
-	Callee *funcs.Instance // Instance of this function.
+	Callee          *funcs.Instance // Instance of this function.
+	callctx.Context                 // Function context.
+	Env             *Environment    // Program environment.
 
 	block.Analyser // Function body analyser.
 	*Logger
@@ -30,14 +29,14 @@ type Function struct {
 // They contain the global, and caller local variables respectively.
 // In particular, the caller context contains the caller *ssa.Function and
 // its corresponding call function.
-func NewFunction(call *funcs.Call, env *Environment, ctx callctx.Context) *Function {
+func NewFunction(call *funcs.Call, ctx callctx.Context, env *Environment) *Function {
 	callee := funcs.Instantiate(call)
 	f := Function{
+		Callee:  callee,
 		Context: callctx.Switch(ctx, callee),
 		Env:     env,
-		Callee:  callee,
 	}
-	b := NewBlock(f.Callee, f.Env, f.Context)
+	b := NewBlock(f.Callee, f.Context, f.Env)
 	f.Analyser = b
 	return &f
 }

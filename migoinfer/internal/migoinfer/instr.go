@@ -10,20 +10,19 @@ import (
 
 // Instruction is a visitor for related instructions within a block.
 type Instruction struct {
-	callctx.Context // Function context.
-
-	Env    *Environment    // Program environment.
-	Callee *funcs.Instance // Instance of this function.
+	Callee          *funcs.Instance // Instance of this function.
+	callctx.Context                 // Function context.
+	Env             *Environment    // Program environment.
 
 	MiGo *migo.Function // MiGo function definition of current block.
 	*Logger
 }
 
-func NewInstruction(callee *funcs.Instance, env *Environment, ctx callctx.Context, migoFn *migo.Function) *Instruction {
+func NewInstruction(callee *funcs.Instance, ctx callctx.Context, env *Environment, migoFn *migo.Function) *Instruction {
 	i := Instruction{
+		Callee:  callee,
 		Context: ctx,
 		Env:     env,
-		Callee:  callee,
 		MiGo:    migoFn,
 	}
 	return &i

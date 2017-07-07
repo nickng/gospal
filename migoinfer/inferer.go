@@ -68,7 +68,7 @@ func (i *Inferer) Analyse() {
 	for _, main := range mains {
 		if mainFn := main.Func("main"); mainFn != nil {
 			mainDef := funcs.MakeCall(funcs.MakeDefinition(mainFn), nil, nil)
-			mainFnAnalyser := migoinfer.NewFunction(mainDef, &i.Env, ctx)
+			mainFnAnalyser := migoinfer.NewFunction(mainDef, ctx, &i.Env)
 			mainFnAnalyser.SetLogger(i.Logger)
 			mainFnAnalyser.EnterFunc(mainDef.Function())
 		}

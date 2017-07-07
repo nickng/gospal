@@ -21,14 +21,14 @@ type Block struct {
 	*block.VisitGraph
 	data []*BlockData
 
-	callctx.Context // Function context.
+	Callee          *funcs.Instance // Instance of this function.
+	callctx.Context                 // Function context.
+	Env             *Environment    // Program environment.
 
-	Env    *Environment    // Program environment.
-	Callee *funcs.Instance // Instance of this function.
 	*Logger
 }
 
-func NewBlock(fn *funcs.Instance, env *Environment, ctx callctx.Context) *Block {
+func NewBlock(fn *funcs.Instance, ctx callctx.Context, env *Environment) *Block {
 	nBlk := len(fn.Function().Blocks)
 	if nBlk == 0 {
 		return nil // No SSA function body.
@@ -50,6 +50,9 @@ func NewBlock(fn *funcs.Instance, env *Environment, ctx callctx.Context) *Block 
 	b := Block{
 		VisitGraph: block.NewVisitGraph(false),
 		data:       blks,
+		Callee:     fn,
+		Context:    ctx,
+		Env:        env,
 	}
 	return &b
 }
