@@ -94,3 +94,8 @@ func (i *Inferer) AddLogFiles(file ...string) {
 	i.Logger = newFileLogger(file...)
 }
 
+func (i *Inferer) SetOutput(w io.Writer) {
+	if w != nil {
+		i.outWriter = w
+	}
+}
