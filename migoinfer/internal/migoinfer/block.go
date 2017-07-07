@@ -2,6 +2,7 @@ package migoinfer
 
 import (
 	"fmt"
+	"go/token"
 
 	"github.com/fatih/color"
 	"github.com/nickng/gospal/block"
@@ -127,13 +128,55 @@ func (b *Block) visitInstrs(blk *ssa.BasicBlock) {
 		switch instr := instr.(type) { // These should be at the end of the blocks.
 		case *ssa.Jump:
 			blkBody.VisitJump(instr)
+			call := migoCall(b.Callee.Name(), blk.Succs[0].Index, b.Exported)
+			// JumpBlk rewrites parameter so has to come after call.
 			b.JumpBlk(blk, blk.Succs[0])
+
+			// Remove phi names that does not belong in the target block.
+			for _, instr := range blk.Succs[0].Instrs {
+				switch instr := instr.(type) {
+				case *ssa.Phi:
+					removed := 0
+					callStmt := call.(*migo.CallStatement)
+					for i := range callStmt.Params {
+						if instr.Name() == callStmt.Params[i-removed].Caller.Name() {
+							callStmt.Params = append(callStmt.Params[:i-removed], callStmt.Params[i-removed+1:]...)
+							removed++
+						}
+					}
+				}
+			}
+			blkData.migoFunc.AddStmts(call)
 
 		case *ssa.If:
 			blkBody.VisitIf(instr)
 			b.Loop.ExtractCond(instr)
 			b.JumpBlk(blk, blk.Succs[0])
 			b.JumpBlk(blk, blk.Succs[1])
+			// Output if-then-else MiGo once.
+			if b.Visited(blkData.visitNode) && !blkData.emitted {
+				if l := b.Loop.ForLoopAt(blk); blk.Comment == "for.loop" && l.ParamsOK() {
+					// For loop entry block.
+					iffor := &migo.IfForStatement{
+						ForCond: l.String(),
+						Then:    []migo.Statement{migoCall(b.Callee.Name(), l.BodyIdx(), blkBody.Exported)},
+						Else:    []migo.Statement{migoCall(b.Callee.Name(), l.DoneIdx(), blkBody.Exported)},
+					}
+					blkData.migoFunc.AddStmts(iffor)
+					blkData.emitted = true
+				} else if blk.Comment != "cond.true" && blk.Comment != "cond.false" {
+					// For loop intermediate blocks.
+					ifstmt := &migo.IfStatement{
+						Then: []migo.Statement{migoCall(b.Callee.Name(), blk.Succs[0].Index, blkBody.Exported)},
+						Else: []migo.Statement{migoCall(b.Callee.Name(), blk.Succs[1].Index, blkBody.Exported)},
+					}
+					blkData.migoFunc.AddStmts(ifstmt)
+					blkData.emitted = true
+				} else if isSelect(instr.Cond) {
+					// Select case body block.
+					blkData.emitted = true
+				}
+			}
 
 		case *ssa.Return:
 			if b.Visited(blkData.visitNode) {
@@ -157,10 +200,68 @@ func (b *Block) visitInstrs(blk *ssa.BasicBlock) {
 
 		case *ssa.Phi:
 			blkBody.VisitPhi(instr)
+			b.mergePhi(blkData, instr)
 			b.Loop.ExtractIndex(instr)
 
 		default:
 			blkBody.VisitInstr(instr)
+		}
+	}
+}
+
+// isSelect returns true if cond is a select-state test boolean.
+func isSelect(cond ssa.Value) bool {
+	if binop, ok := cond.(*ssa.BinOp); ok && binop.Op == token.EQL {
+		if ext, ok := binop.X.(*ssa.Extract); ok && ext.Index == 0 {
+			if _, ok := ext.Tuple.(*ssa.Select); ok {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// mergePhi deals with variables in the context and exported names for φ.
+//
+// Given a φ-node, e.g.
+//   t6 = φ[0: t1, 1: t2]
+// t6 is removed from the function parameter and call argument.
+// Variable from the incoming edge, e.g. 0 → t1 is located from the args then
+// its corresponding parameter at callee is replaced by t6.
+// The original context, e.g.
+//   [ t1 → a, ... ]
+// Is then converted to use the φ name, i.e. t6
+//  [ t6 → a, t1 → a...]
+// The original name is unexported (callee no longer have access),
+// but the new φ name is exported (callee will call old name with new name).
+//
+func (b *Block) mergePhi(data *BlockData, instr *ssa.Phi) {
+	migoFn := data.migoFunc
+	removed := 0
+	b.Logger.Debugf("%s Remove φ argument %s", b.Logger.Module(), instr.Name())
+	for i := 0; i < len(migoFn.Params); i++ {
+		if migoFn.Params[i-removed].Caller.Name() == instr.Name() || migoFn.Params[i-removed].Callee.Name() == instr.Name() {
+			migoFn.Params = append(migoFn.Params[:i-removed], migoFn.Params[i-removed+1:]...)
+			removed++
+		}
+	}
+	var edge ssa.Value
+	for i, pred := range data.visitNode.Blk().Preds {
+		if pred.Index == data.visitNode.Prev.Index() {
+			edge = instr.Edges[i]
+		}
+	}
+	b.Logger.Debugf("%s Replace φ edges %s with %s in parameter",
+		b.Logger.Module(), edge.Name(), instr.Name())
+	for i := range migoFn.Params {
+		if edge.Name() == migoFn.Params[i].Caller.Name() {
+			// Update def parameters.
+			migoFn.Params[i].Callee = instr
+			// Update context.
+			b.Context.Put(instr, b.Context.Get(edge))
+			// Update exported names.
+			b.Unexport(edge)
+			b.Export(instr)
 		}
 	}
 }
