@@ -1,12 +1,19 @@
 package migoinfer
 
 import (
+	"go/token"
+	"go/types"
+	"log"
+
 	"github.com/fatih/color"
 	"github.com/nickng/gospal/callctx"
 	"github.com/nickng/gospal/fn"
 	"github.com/nickng/gospal/funcs"
 	"github.com/nickng/gospal/store"
+	"github.com/nickng/gospal/store/chans"
+	"github.com/nickng/gospal/store/structs"
 	"github.com/nickng/migo"
+	"github.com/pkg/errors"
 	"golang.org/x/tools/go/ssa"
 )
 
@@ -32,6 +39,134 @@ func NewInstruction(callee *funcs.Instance, ctx callctx.Context, env *Environmen
 }
 
 func (v *Instruction) VisitInstr(instr ssa.Instruction) {
+	switch instr := instr.(type) {
+	case *ssa.Alloc:
+		v.Logger.Debugf("%s Alloc: %s = %s\n\t%s",
+			v.Logger.Module(), instr.Name(), instr, v.Env.getPos(instr))
+		v.VisitAlloc(instr)
+
+	case *ssa.BinOp:
+		v.VisitBinOp(instr)
+
+	case *ssa.Call:
+		v.Logger.Debugf("%s Call: %s = %s\n\t%s",
+			v.Logger.Module(), instr.Name(), instr, v.Env.getPos(instr))
+		v.VisitCall(instr)
+
+	case *ssa.ChangeInterface:
+		v.VisitChangeInterface(instr)
+
+	case *ssa.ChangeType:
+		v.Logger.Debugf("%s ChangeType: %s = %s\n\t%s",
+			v.Logger.Module(), instr.Name(), instr, v.Env.getPos(instr))
+		v.VisitChangeType(instr)
+
+	case *ssa.Convert:
+		v.VisitConvert(instr)
+
+	case *ssa.DebugRef:
+		v.VisitDebugRef(instr)
+
+	case *ssa.Defer:
+		v.VisitDefer(instr)
+
+	case *ssa.Extract:
+		v.VisitExtract(instr)
+
+	case *ssa.Field:
+		v.VisitField(instr)
+
+	case *ssa.FieldAddr:
+		v.Logger.Debugf("%s FieldAddr: %s = %s\n\t%s",
+			v.Logger.Module(), instr.Name(), instr, v.Env.getPos(instr))
+		v.VisitFieldAddr(instr)
+
+	case *ssa.Go:
+		v.Logger.Debugf("%s Go: %s\n\t%s",
+			v.Logger.Module(), instr, v.Env.getPos(instr))
+		v.VisitGo(instr)
+
+	case *ssa.If:
+		v.VisitIf(instr)
+
+	case *ssa.Index:
+		v.VisitIndex(instr)
+
+	case *ssa.IndexAddr:
+		v.VisitIndexAddr(instr)
+
+	case *ssa.Jump:
+		v.VisitJump(instr)
+
+	case *ssa.Lookup:
+		v.VisitLookup(instr)
+
+	case *ssa.MakeChan:
+		v.Logger.Debugf("%s MakeChan %s = %s\n\t%s",
+			v.Logger.Module(), instr.Name(), instr, v.Env.getPos(instr))
+		v.VisitMakeChan(instr)
+
+	case *ssa.MakeClosure:
+		v.Logger.Debugf("%s MakeClosure %s = %s\n\t%s",
+			v.Logger.Module(), instr.Name(), instr, v.Env.getPos(instr))
+		v.VisitMakeClosure(instr)
+
+	case *ssa.MakeInterface:
+		v.Logger.Debugf("%s MakeInterface %s = %s\n\t%s",
+			v.Logger.Module(), instr.Name(), instr, v.Env.getPos(instr))
+		v.VisitMakeInterface(instr)
+
+	case *ssa.MakeMap:
+		v.VisitMakeMap(instr)
+
+	case *ssa.MakeSlice:
+		v.VisitMakeSlice(instr)
+
+	case *ssa.MapUpdate:
+		v.VisitMapUpdate(instr)
+
+	case *ssa.Next:
+		v.VisitNext(instr)
+
+	case *ssa.Panic:
+		v.VisitPanic(instr)
+
+	case *ssa.Phi:
+		v.VisitPhi(instr)
+
+	case *ssa.Range:
+		v.VisitRange(instr)
+
+	case *ssa.Return:
+		v.VisitReturn(instr)
+
+	case *ssa.RunDefers:
+		v.VisitRunDefers(instr)
+
+	case *ssa.Select:
+		v.VisitSelect(instr)
+
+	case *ssa.Send:
+		v.Logger.Debugf("%s Send: %s\n\t%s",
+			v.Logger.Module(), instr, v.Env.getPos(instr))
+		v.VisitSend(instr)
+
+	case *ssa.Slice:
+		v.VisitSlice(instr)
+
+	case *ssa.Store:
+		v.VisitStore(instr)
+
+	case *ssa.TypeAssert:
+		v.VisitTypeAssert(instr)
+
+	case *ssa.UnOp:
+		v.VisitUnOp(instr)
+
+	default:
+		v.Logger.Fatalf("%s Unhandled instruction %q (%T)\n\t%s",
+			v.Logger.Module(), instr, instr, v.Env.getPos(instr))
+	}
 }
 
 func (v *Instruction) VisitAlloc(instr *ssa.Alloc) {
@@ -104,6 +239,10 @@ func (v *Instruction) VisitLookup(instr *ssa.Lookup) {
 }
 
 func (v *Instruction) VisitMakeChan(instr *ssa.MakeChan) {
+	newch := v.newChan(instr)
+	v.Put(instr, newch)
+	v.Export(instr)
+	v.MiGo.AddStmts(migoNewChan(instr, newch))
 }
 
 func (v *Instruction) VisitMakeClosure(instr *ssa.MakeClosure) {
@@ -145,9 +284,11 @@ func (v *Instruction) VisitRunDefers(instr *ssa.RunDefers) {
 }
 
 func (v *Instruction) VisitSelect(instr *ssa.Select) {
+	v.MiGo.AddStmts(v.getSelectCases(instr))
 }
 
 func (v *Instruction) VisitSend(instr *ssa.Send) {
+	v.MiGo.AddStmts(migoSend(v, instr.Chan, v.Get(instr.Chan)))
 }
 
 func (v *Instruction) VisitSlice(instr *ssa.Slice) {
@@ -160,6 +301,16 @@ func (v *Instruction) VisitTypeAssert(instr *ssa.TypeAssert) {
 }
 
 func (v *Instruction) VisitUnOp(instr *ssa.UnOp) {
+	switch instr.Op {
+	case token.ARROW:
+		v.MiGo.AddStmts(migoRecv(v, instr.X, v.Get(instr.X)))
+	case token.MUL:
+		if _, err := callctx.Deref(v.Context, instr.X, instr); err != nil {
+			v.Env.Errors <- errors.WithStack(err) // internal error.
+		}
+	default:
+		v.Logger.Debugf("%s UnOp", v.Logger.Module(), instr)
+	}
 }
 
 // SetLogger sets logger for Instruction.
@@ -262,4 +413,134 @@ func (v *Instruction) doGo(g *ssa.Go, def *funcs.Definition) {
 		}
 	}
 	v.MiGo.AddStmts(stmt)
+}
+
+// newChan creates a new channel instance
+func (v *Instruction) newChan(ch ssa.Value) *chans.Chan {
+	var bufSize int64
+	bufsz, ok := ch.(*ssa.MakeChan).Size.(*ssa.Const)
+	if !ok {
+		v.Env.Errors <- ErrChanBufSzNonStatic{Pos: v.Env.Info.FSet.Position(ch.Pos())}
+		bufSize = 1
+	} else {
+		bufSize = bufsz.Int64()
+	}
+	newch := chans.New(v.Callee, ch, bufSize)
+	if updater, ok := v.Context.(callctx.Updater); ok {
+		updater.PutUniq(ch, newch)
+	} else {
+		v.Logger.Fatal("Cannot update context")
+	}
+	return newch
+}
+
+const (
+	selectCaseIndex = 0
+	selectCaseValue = 1
+)
+
+func (v *Instruction) getSelectCases(sel *ssa.Select) migo.Statement {
+	nCases := len(sel.States)
+	if !sel.Blocking {
+		nCases++
+	}
+	stmt := &migo.SelectStatement{Cases: make([][]migo.Statement, nCases)}
+	var migoParams []*migo.Parameter
+	for _, name := range v.Exported.names {
+		migoParams = append(migoParams, &migo.Parameter{Callee: name, Caller: name})
+	}
+	if !sel.Blocking {
+		stmt.Cases[nCases-1] = append(stmt.Cases[nCases-1], &migo.TauStatement{})
+	}
+	for _, selCase := range *sel.Referrers() {
+		switch c := selCase.(type) {
+		case *ssa.Extract:
+			// Find all select-index tests.
+			switch c.Index {
+			case selectCaseIndex:
+				for _, selTest := range *c.Referrers() {
+					switch selTest := selTest.(type) {
+					case *ssa.BinOp: // Select branch is this form, t_test = t_index == intval
+						if con, ok := selTest.Y.(*ssa.Const); selTest.X == c && selTest.Op == token.EQL && ok {
+							idx := int(con.Int64())
+
+							bodyGuard := v.selBodyGuard(sel, idx)
+							bodyBlk, defaultBlk := v.selBodyBlock(sel, idx, selTest.Block())
+							if bodyBlk != nil {
+								stmt.Cases[idx] = append(stmt.Cases[idx], bodyGuard)
+								v.Logger.Debugf("%s Select index #%d block #%d (%s)", v.Logger.Module(), idx, bodyBlk.Index, bodyBlk.Comment)
+							} else {
+								v.Logger.Debugf("%s Select index #%d no continuation", v.Logger.Module(), idx)
+							}
+							if defaultBlk != nil {
+								stmt.Cases[idx+1] = append(stmt.Cases[idx+1], migoCall(v.Callee.Name(), defaultBlk.Index, v.Exported))
+							}
+							if bodyBlk != nil { // Return (no continuation)
+								stmt.Cases[idx] = append(stmt.Cases[idx], migoCall(v.Callee.Name(), bodyBlk.Index, v.Exported))
+							}
+						}
+					default:
+						v.Logger.Fatal("%s Unexpected select-index test expression",
+							v.Logger.Module(), selTest.String())
+					}
+				}
+			}
+		}
+	}
+	return stmt
+}
+
+// selBodyGuard returns the guard action of a select case (except for default).
+func (v *Instruction) selBodyGuard(sel *ssa.Select, caseIdx int) migo.Statement {
+	chVar := sel.States[caseIdx].Chan
+	chPos := v.Env.Info.FSet.Position(chVar.Pos())
+	ch := v.Get(chVar)
+	if _, ok := ch.(store.MockValue); ok {
+		v.Logger.Debugf("%s Unknown channel %s.\n\t%s",
+			v.Logger.Module(), ch, chPos.String())
+	}
+	param := v.FindExported(v.Context, ch)
+	if _, isHidden := param.(Unexported); isHidden {
+		v.Logger.Debugf("%s Channel %s/%s not exported in current scope.\n\t%s",
+			v.Logger.Module(), sel.States[caseIdx].Chan.Name(), ch.UniqName(), chPos.String())
+	}
+	// Select guard actions then jump to body blocks
+	switch sel.States[caseIdx].Dir {
+	case types.SendOnly:
+		return &migo.SendStatement{Chan: param.Name()}
+	case types.RecvOnly:
+		return &migo.RecvStatement{Chan: param.Name()}
+	default:
+		v.Logger.Fatalf("%s Select case is guarded by neither send nor receive.\n\t%s",
+			v.Logger.Module(), chPos.String())
+	}
+	return nil
+}
+
+// selBodyBlock returns the body block of a select case and the default case if
+// the block is is the last case.
+//
+// if tauBlk is not nil, caseIdx is guaranteed to be the last case.
+func (v *Instruction) selBodyBlock(sel *ssa.Select, caseIdx int, testBlk *ssa.BasicBlock) (bodyBlk, tauBlk *ssa.BasicBlock) {
+	switch inst := testBlk.Instrs[len(testBlk.Instrs)-1].(type) {
+	case *ssa.If: // Normal case.
+		if isLastCase := caseIdx == len(sel.States)-1 && !sel.Blocking; isLastCase {
+			v.Logger.Debugf("%s Select default block #%d.\n\t%s",
+				v.Logger.Module(), caseIdx+1, v.Env.getPos(sel))
+			return inst.Block().Succs[0], inst.Block().Succs[1]
+		}
+		return inst.Block().Succs[0], nil
+	case *ssa.Jump: // Else branch empty, followed by continuation of select.
+		v.Logger.Debugf("%s Select default block empty (jump).\n\t%s",
+			v.Logger.Module(), v.Env.getPos(sel))
+		return inst.Block().Succs[0], nil
+	case *ssa.Return: // Else branch empty and no continuation after select.
+		v.Logger.Debugf("%s Select default block empty (return).\n\t%s",
+			v.Logger.Module(), v.Env.getPos(sel))
+		return nil, nil
+	default:
+		v.Logger.Fatalf("%s Select case has unrecognised last instruction in block.\n\t%s",
+			v.Logger.Module(), v.Env.getPos(inst))
+	}
+	return nil, nil
 }

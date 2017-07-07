@@ -3,9 +3,15 @@ package migoinfer
 import (
 	"bytes"
 	"fmt"
+	"go/types"
+
+	"golang.org/x/tools/go/ssa"
 
 	"github.com/nickng/gospal/callctx"
+	"github.com/nickng/gospal/funcs"
 	"github.com/nickng/gospal/store"
+	"github.com/nickng/gospal/store/chans"
+	"github.com/nickng/gospal/store/structs"
 	"github.com/nickng/migo"
 )
 
@@ -69,18 +75,57 @@ type Unexported struct {
 
 // migoCall returns a 'call' in MiGo using exported values.
 func migoCall(fn string, idx int, exported *Exported) migo.Statement {
-	var stmt migo.Statement
 	var params []*migo.Parameter
-
 	for _, name := range exported.names {
 		params = append(params, &migo.Parameter{Caller: name, Callee: name})
 	}
 	if idx == 0 {
-		stmt = &migo.CallStatement{Name: fn, Params: params}
-	} else {
-		stmt = &migo.CallStatement{Name: fmt.Sprintf("%s#%d", fn, idx), Params: params}
+		return &migo.CallStatement{Name: fn, Params: params}
 	}
-	return stmt
+	return &migo.CallStatement{Name: fmt.Sprintf("%s#%d", fn, idx), Params: params}
+}
+
+// migoNewChan returns a 'newchan' in MiGo.
+func migoNewChan(name migo.NamedVar, ch *chans.Chan) migo.Statement {
+	return &migo.NewChanStatement{Name: name, Chan: ch.UniqName(), Size: ch.Size()}
+}
+
+// migoRecv returns a Receive Statement in MiGo.
+func migoRecv(v *Instruction, local ssa.Value, ch store.Value) migo.Statement {
+	if _, ok := ch.(store.MockValue); !ok {
+		switch param := v.FindExported(v.Context, ch).(type) {
+		case Unexported:
+			v.Logger.Warnf("%s Channel %s/%s not exported in current scope\n\t%s",
+				v.Logger.Module(), local.Name(), ch.UniqName(), v.Env.getPos(local))
+			return (&migo.RecvStatement{Chan: param.Name()})
+		default:
+			v.Logger.Debugf("%s Receive %s==%s ↦ %s\t%s",
+				v.Logger.Module(), local.Name(), param.Name(), ch.UniqName(), local.Type())
+			return (&migo.RecvStatement{Chan: param.Name()})
+		}
+	}
+	v.Logger.Warnf("%s Receive unknown-channel %s\n\t%s",
+		v.Logger.Module(), ch.UniqName(), v.Env.getPos(local))
+	return (&migo.RecvStatement{Chan: local.Name()})
+}
+
+// migoSend returns a Send Statement in MiGo.
+func migoSend(v *Instruction, local ssa.Value, ch store.Value) migo.Statement {
+	if _, ok := ch.(store.MockValue); !ok {
+		switch param := v.FindExported(v.Context, ch).(type) {
+		case Unexported:
+			v.Logger.Warnf("%s Channel %s/%s not exported in current scope\n\t%s",
+				v.Logger.Module(), local.Name(), ch.UniqName(), v.Env.getPos(local))
+			return &migo.SendStatement{Chan: param.Name()}
+		default:
+			v.Logger.Debugf("%s Send %s==%s ↦ %s\t%s",
+				v.Logger.Module(), local.Name(), param.Name(), ch.UniqName(), local.Type())
+			return &migo.SendStatement{Chan: param.Name()}
+		}
+	}
+	v.Logger.Warnf("%s Send unknown-channel %s\n\t%s",
+		v.Logger.Module(), ch.UniqName(), v.Env.getPos(local))
+	return &migo.SendStatement{Chan: local.Name()}
 }
 
 // paramsToMigoParam converts call parameters into MiGo parameters if they are
