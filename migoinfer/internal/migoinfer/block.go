@@ -164,6 +164,9 @@ func (b *Block) visitInstrs(blk *ssa.BasicBlock) {
 					}
 					blkData.migoFunc.AddStmts(iffor)
 					blkData.emitted = true
+				} else if isSelCondBlk(instr.Cond) {
+					// Select case body block.
+					blkData.emitted = true
 				} else if blk.Comment != "cond.true" && blk.Comment != "cond.false" {
 					// For loop intermediate blocks.
 					ifstmt := &migo.IfStatement{
@@ -171,9 +174,6 @@ func (b *Block) visitInstrs(blk *ssa.BasicBlock) {
 						Else: []migo.Statement{migoCall(b.Callee.Name(), blk.Succs[1].Index, blkBody.Exported)},
 					}
 					blkData.migoFunc.AddStmts(ifstmt)
-					blkData.emitted = true
-				} else if isSelect(instr.Cond) {
-					// Select case body block.
 					blkData.emitted = true
 				}
 			}
@@ -209,8 +209,8 @@ func (b *Block) visitInstrs(blk *ssa.BasicBlock) {
 	}
 }
 
-// isSelect returns true if cond is a select-state test boolean.
-func isSelect(cond ssa.Value) bool {
+// isSelCondBlk returns true if cond is a select-state test block boolean.
+func isSelCondBlk(cond ssa.Value) bool {
 	if binop, ok := cond.(*ssa.BinOp); ok && binop.Op == token.EQL {
 		if ext, ok := binop.X.(*ssa.Extract); ok && ext.Index == 0 {
 			if _, ok := ext.Tuple.(*ssa.Select); ok {
