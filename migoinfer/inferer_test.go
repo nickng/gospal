@@ -50,7 +50,7 @@ func TestPrimitives(t *testing.T) {
 		{"Return channel/Set channel in struct", "returnch-setch"},
 		{"Structs/Interfaces", "iface"},
 		{"Channel chain by overwriting chan vars", "overwrite-chan"},
-		{"Aliasing", "alias"},
+		{"While-true loop", "whiletrue"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

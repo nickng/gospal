@@ -86,7 +86,10 @@ func (b *Block) JumpBlk(curr *ssa.BasicBlock, next *ssa.BasicBlock) {
 	if !b.Visited(bnNext) {
 		// Marks the bnCurr -> bnNext edge visited.
 		b.VisitFrom(bnCurr, bnNext)
-		b.visitInstrs(next)
+		if bnCurr.Index() == bnNext.Index() && b.Visited(bnNext) {
+		} else {
+			b.visitInstrs(next)
+		}
 	}
 }
 

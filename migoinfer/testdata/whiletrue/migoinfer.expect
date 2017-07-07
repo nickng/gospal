@@ -1,0 +1,13 @@
+def main.main():
+    let t0 = newchan main.main0.t0_chan0, 0;
+    let t1 = newchan main.main0.t1_chan0, 0;
+    spawn main.fork(t0);
+    spawn main.fork(t1);
+    send t0;
+    send t1;
+def main.fork(ch):
+    call main.fork#1(ch);
+def main.fork#1(ch):
+    recv ch;
+    send ch;
+    call main.fork#1(ch);
