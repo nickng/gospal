@@ -26,8 +26,14 @@ func (info *Info) WriteTo(w io.Writer) (int64, error) {
 		return 0, err
 	}
 	pkgFuncs := make(map[*ssa.Package]members)
+	ignoredPkg := make(map[string]bool)
+	for _, p := range info.IgnoredPkgs {
+		ignoredPkg[p] = true
+	}
 	for _, f := range funcs {
-		pkgFuncs[f.Pkg] = append(pkgFuncs[f.Pkg], f)
+		if _, ignored := ignoredPkg[f.Pkg.Pkg.Name()]; !ignored {
+			pkgFuncs[f.Pkg] = append(pkgFuncs[f.Pkg], f)
+		}
 	}
 	var n int64
 	for pkg := range pkgFuncs {
