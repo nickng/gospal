@@ -131,24 +131,9 @@ func (b *Block) visitInstrs(blk *ssa.BasicBlock) {
 		switch instr := instr.(type) { // These should be at the end of the blocks.
 		case *ssa.Jump:
 			blkBody.VisitJump(instr)
-			call := migoCall(b.Callee.Name(), blk.Succs[0].Index, b.Exported)
+			call := migoCall(b.Callee.Name(), blk.Succs[0], b.Exported)
 			// JumpBlk rewrites parameter so has to come after call.
 			b.JumpBlk(blk, blk.Succs[0])
-
-			// Remove phi names that does not belong in the target block.
-			for _, instr := range blk.Succs[0].Instrs {
-				switch instr := instr.(type) {
-				case *ssa.Phi:
-					removed := 0
-					callStmt := call.(*migo.CallStatement)
-					for i := range callStmt.Params {
-						if instr.Name() == callStmt.Params[i-removed].Caller.Name() {
-							callStmt.Params = append(callStmt.Params[:i-removed], callStmt.Params[i-removed+1:]...)
-							removed++
-						}
-					}
-				}
-			}
 			blkData.migoFunc.AddStmts(call)
 
 		case *ssa.If:
@@ -159,11 +144,13 @@ func (b *Block) visitInstrs(blk *ssa.BasicBlock) {
 			// Output if-then-else MiGo once.
 			if b.Visited(blkData.visitNode) && !blkData.emitted {
 				if l := b.Loop.ForLoopAt(blk); blk.Comment == "for.loop" && l.ParamsOK() {
+					loopBody := migoCall(b.Callee.Name(), blk.Parent().Blocks[l.BodyIdx()], blkBody.Exported)
+					loopDone := migoCall(b.Callee.Name(), blk.Parent().Blocks[l.DoneIdx()], blkBody.Exported)
 					// For loop entry block.
 					iffor := &migo.IfForStatement{
 						ForCond: l.String(),
-						Then:    []migo.Statement{migoCall(b.Callee.Name(), l.BodyIdx(), blkBody.Exported)},
-						Else:    []migo.Statement{migoCall(b.Callee.Name(), l.DoneIdx(), blkBody.Exported)},
+						Then:    []migo.Statement{loopBody},
+						Else:    []migo.Statement{loopDone},
 					}
 					blkData.migoFunc.AddStmts(iffor)
 					blkData.emitted = true
@@ -171,10 +158,12 @@ func (b *Block) visitInstrs(blk *ssa.BasicBlock) {
 					// Select case body block.
 					blkData.emitted = true
 				} else if blk.Comment != "cond.true" && blk.Comment != "cond.false" {
+					callThen := migoCall(b.Callee.Name(), blk.Succs[0], blkBody.Exported)
+					callElse := migoCall(b.Callee.Name(), blk.Succs[1], blkBody.Exported)
 					// For loop intermediate blocks.
 					ifstmt := &migo.IfStatement{
-						Then: []migo.Statement{migoCall(b.Callee.Name(), blk.Succs[0].Index, blkBody.Exported)},
-						Else: []migo.Statement{migoCall(b.Callee.Name(), blk.Succs[1].Index, blkBody.Exported)},
+						Then: []migo.Statement{callThen},
+						Else: []migo.Statement{callElse},
 					}
 					blkData.migoFunc.AddStmts(ifstmt)
 					blkData.emitted = true

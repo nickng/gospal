@@ -609,10 +609,10 @@ func (v *Instruction) getSelectCases(sel *ssa.Select) migo.Statement {
 								v.Logger.Debugf("%s Select index #%d no continuation", v.Logger.Module(), idx)
 							}
 							if defaultBlk != nil {
-								stmt.Cases[idx+1] = append(stmt.Cases[idx+1], migoCall(v.Callee.Name(), defaultBlk.Index, v.Exported))
+								stmt.Cases[idx+1] = append(stmt.Cases[idx+1], migoCall(v.Callee.Name(), defaultBlk, v.Exported))
 							}
 							if bodyBlk != nil { // Return (no continuation)
-								stmt.Cases[idx] = append(stmt.Cases[idx], migoCall(v.Callee.Name(), bodyBlk.Index, v.Exported))
+								stmt.Cases[idx] = append(stmt.Cases[idx], migoCall(v.Callee.Name(), bodyBlk, v.Exported))
 							}
 						}
 					default:

@@ -74,15 +74,31 @@ type Unexported struct {
 }
 
 // migoCall returns a 'call' in MiGo using exported values.
-func migoCall(fn string, idx int, exported *Exported) migo.Statement {
+func migoCall(fn string, blk *ssa.BasicBlock, exported *Exported) migo.Statement {
 	var params []*migo.Parameter
 	for _, name := range exported.names {
 		params = append(params, &migo.Parameter{Caller: name, Callee: name})
 	}
-	if idx == 0 {
+	// Remove φ names that does not belong in the target block.
+	// call f([x ↦ a][y ↦ c]) becomes call f([x ↦ a])
+	// def f(x):
+	//   y = φ[a,b]
+	for _, instr := range blk.Instrs {
+		switch instr := instr.(type) {
+		case *ssa.Phi:
+			removed := 0
+			for i := range params {
+				if instr.Name() == params[i-removed].Caller.Name() {
+					params = append(params[:i-removed], params[i-removed+1:]...)
+					removed++
+				}
+			}
+		}
+	}
+	if blk.Index == 0 {
 		return &migo.CallStatement{Name: fn, Params: params}
 	}
-	return &migo.CallStatement{Name: fmt.Sprintf("%s#%d", fn, idx), Params: params}
+	return &migo.CallStatement{Name: fmt.Sprintf("%s#%d", fn, blk.Index), Params: params}
 }
 
 // migoNewChan returns a 'newchan' in MiGo.
