@@ -51,6 +51,7 @@ func TestPrimitives(t *testing.T) {
 		{"Structs/Interfaces", "iface"},
 		{"Channel chain by overwriting chan vars", "overwrite-chan"},
 		{"While-true loop", "whiletrue"},
+		{"for-select loop", "for-select"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
