@@ -17,7 +17,7 @@ func TraverseEdges(fn *ssa.Function, visit func(from, to *ssa.BasicBlock)) {
 	for len(queue) > 0 {
 		e := queue[0]
 		queue = queue[1:]
-		if !visited.Visited(NewVisitNode(e.To)) {
+		if !visited.NodeVisited(NewVisitNode(e.To)) {
 			if e.From == nil {
 				visited.Visit(NewVisitNode(e.To))
 			} else {

@@ -128,27 +128,27 @@ func TestVisitGraphVisited(t *testing.T) {
 	b0 := NewVisitNode(mainFn.Blocks[0])
 	b1 := NewVisitNode(mainFn.Blocks[1])
 	b2 := NewVisitNode(mainFn.Blocks[2])
-	if g.Visited(b0) {
+	if g.NodeVisited(b0) {
 		t.Errorf("Block 0 and parent function should be unvisited, got %t",
-			g.Visited(b0))
+			g.NodeVisited(b0))
 	}
 	g.Visit(b0)
-	if !g.Visited(b0) {
-		t.Errorf("Block 0 should be visited, got %t", g.Visited(b0))
+	if !g.NodeVisited(b0) {
+		t.Errorf("Block 0 should be visited, got %t", g.NodeVisited(b0))
 	}
-	if g.Visited(b1) {
-		t.Errorf("Block 1 should be unvisited by default, got %t", g.Visited(b1))
+	if g.NodeVisited(b1) {
+		t.Errorf("Block 1 should be unvisited by default, got %t", g.NodeVisited(b1))
 	}
-	if g.Visited(b2) {
-		t.Errorf("Block 2 should be unvisited by default, got %t", g.Visited(b2))
+	if g.NodeVisited(b2) {
+		t.Errorf("Block 2 should be unvisited by default, got %t", g.NodeVisited(b2))
 	}
 
 	g.Visit(b1) // If then (if 1 else 2)
-	if !g.Visited(b0) {
-		t.Errorf("Block 0 should be visited, got %t", g.Visited(b0))
+	if !g.NodeVisited(b0) {
+		t.Errorf("Block 0 should be visited, got %t", g.NodeVisited(b0))
 	}
-	if !g.Visited(b1) {
-		t.Errorf("Block 1 should be visited, got %t", g.Visited(b1))
+	if !g.NodeVisited(b1) {
+		t.Errorf("Block 1 should be visited, got %t", g.NodeVisited(b1))
 	}
 	if g.visited[b2.Fn()][2][0] {
 		t.Errorf("0 --> 2 is unvisited, got %t", g.visited[b2.Fn()][2][0])
@@ -156,16 +156,16 @@ func TestVisitGraphVisited(t *testing.T) {
 	if g.visited[b2.Fn()][2][1] {
 		t.Errorf("1 --> 2 is unvisited, got %t", g.visited[b2.Fn()][2][1])
 	}
-	if g.Visited(b2) {
-		t.Errorf("Block 2 should be unvisited, got %t", g.Visited(b2))
+	if g.NodeVisited(b2) {
+		t.Errorf("Block 2 should be unvisited, got %t", g.NodeVisited(b2))
 	}
 
 	g.Visit(b2) // Follow up on If then (jump 2)
-	if !g.Visited(b0) {
-		t.Errorf("Block 0 should be visited, got %t", g.Visited(b0))
+	if !g.NodeVisited(b0) {
+		t.Errorf("Block 0 should be visited, got %t", g.NodeVisited(b0))
 	}
-	if !g.Visited(b1) {
-		t.Errorf("Block 1 should be visited, got %t", g.Visited(b1))
+	if !g.NodeVisited(b1) {
+		t.Errorf("Block 1 should be visited, got %t", g.NodeVisited(b1))
 	}
 	if g.visited[b2.Fn()][2][0] {
 		t.Errorf("0 --> 2 is unvisited, got %t", g.visited[b2.Fn()][2][1])
@@ -173,17 +173,17 @@ func TestVisitGraphVisited(t *testing.T) {
 	if !g.visited[b2.Fn()][2][1] {
 		t.Errorf("1 --> 2 is visited, got %t", g.visited[b2.Fn()][2][1])
 	}
-	if g.Visited(b2) {
-		t.Errorf("Block 2 should be unvisited, got %t", g.Visited(b2))
+	if g.NodeVisited(b2) {
+		t.Errorf("Block 2 should be unvisited, got %t", g.NodeVisited(b2))
 	}
 
 	// Revert to if-parent, b0
 	g.VisitFrom(b0, b2) // If else (if 1 else 2)
-	if !g.Visited(b0) {
-		t.Errorf("Block 0 should be visited, got %t", g.Visited(b0))
+	if !g.NodeVisited(b0) {
+		t.Errorf("Block 0 should be visited, got %t", g.NodeVisited(b0))
 	}
-	if !g.Visited(b1) {
-		t.Errorf("Block 1 should be visited, got %t", g.Visited(b1))
+	if !g.NodeVisited(b1) {
+		t.Errorf("Block 1 should be visited, got %t", g.NodeVisited(b1))
 	}
 	if !g.visited[b2.Fn()][2][0] {
 		t.Errorf("0 --> 2 is visited, got %t", g.visited[b2.Fn()][2][0])
@@ -191,8 +191,8 @@ func TestVisitGraphVisited(t *testing.T) {
 	if !g.visited[b2.Fn()][2][1] {
 		t.Errorf("1 --> 2 is visited, got %t", g.visited[b2.Fn()][2][1])
 	}
-	if !g.Visited(b2) {
-		t.Errorf("Block 2 should be visited, got %t", g.Visited(b2))
+	if !g.NodeVisited(b2) {
+		t.Errorf("Block 2 should be visited, got %t", g.NodeVisited(b2))
 	}
 }
 
@@ -203,42 +203,65 @@ func TestVisitGraphVisitedOnce(t *testing.T) {
 	b0 := NewVisitNode(mainFn.Blocks[0])
 	b1 := NewVisitNode(mainFn.Blocks[1])
 	b2 := NewVisitNode(mainFn.Blocks[2])
-	if g.Visited(b0) {
+	if g.NodeVisited(b0) {
 		t.Errorf("Block 0 and parent function should be unvisited, got %t",
-			g.Visited(b0))
+			g.NodeVisited(b0))
+	}
+	if !g.NodePartialVisited(b0) {
+		t.Errorf("Block 0 should be unvisited no matter what, got %t",
+			g.NodePartialVisited(b0))
 	}
 	g.Visit(b0)
-	if !g.Visited(b0) {
-		t.Errorf("Block 0 should be visited, got %t", g.Visited(b0))
+	if !g.NodeVisited(b0) {
+		t.Errorf("Block 0 should be visited, got %t", g.NodeVisited(b0))
 	}
 	if !g.VisitedOnce(b0) {
 		t.Errorf("Block 0 should be visited once, got %t", g.VisitedOnce(b0))
 	}
-	if g.Visited(b1) {
-		t.Errorf("Block 1 should be unvisited by default, got %t", g.Visited(b1))
+	if !g.NodePartialVisited(b0) {
+		t.Errorf("Block 0 should be unvisited no matter what, got %t",
+			g.NodePartialVisited(b0))
+	}
+	if g.NodeVisited(b1) {
+		t.Errorf("Block 1 should be unvisited by default, got %t", g.NodeVisited(b1))
 	}
 	if g.VisitedOnce(b1) {
 		t.Errorf("Block 1 should be unvisited once by default, got %t", g.VisitedOnce(b1))
 	}
-	if g.Visited(b2) {
-		t.Errorf("Block 2 should be unvisited by default, got %t", g.Visited(b2))
+	if !g.NodePartialVisited(b1) {
+		t.Errorf("Block 1 should be unvisited by default (only 0 visited), got %t",
+			g.NodePartialVisited(b1))
+	}
+	if g.NodeVisited(b2) {
+		t.Errorf("Block 2 should be unvisited by default, got %t", g.NodeVisited(b2))
 	}
 	if g.VisitedOnce(b1) {
 		t.Errorf("Block 1 should be unvisited once by default, got %t", g.VisitedOnce(b1))
+	}
+	if !g.NodePartialVisited(b2) {
+		t.Errorf("Block 2 should be unvisited by default (only 0 visited), got %t",
+			g.NodePartialVisited(b2))
 	}
 
 	g.Visit(b1) // If then (if 1 else 2)
-	if !g.Visited(b0) {
-		t.Errorf("Block 0 should be visited, got %t", g.Visited(b0))
+	if !g.NodeVisited(b0) {
+		t.Errorf("Block 0 should be visited, got %t", g.NodeVisited(b0))
 	}
 	if !g.VisitedOnce(b0) {
 		t.Errorf("Block 0 should be visited once, got %t", g.VisitedOnce(b0))
 	}
-	if !g.Visited(b1) {
-		t.Errorf("Block 1 should be visited, got %t", g.Visited(b1))
+	if !g.NodePartialVisited(b0) {
+		t.Errorf("Block 0 should be unvisited no matter what, got %t",
+			g.NodePartialVisited(b0))
+	}
+	if !g.NodeVisited(b1) {
+		t.Errorf("Block 1 should be visited, got %t", g.NodeVisited(b1))
 	}
 	if !g.VisitedOnce(b1) {
 		t.Errorf("Block 1 should be visited once, got %t", g.VisitedOnce(b1))
+	}
+	if g.NodePartialVisited(b1) {
+		t.Errorf("Block 1 should be visited by default, got %t", g.NodePartialVisited(b1))
 	}
 	if g.visited[b2.Fn()][2][0] {
 		t.Errorf("0 --> 2 is unvisited, got %t", g.visited[b2.Fn()][2][0])
@@ -246,25 +269,35 @@ func TestVisitGraphVisitedOnce(t *testing.T) {
 	if g.visited[b2.Fn()][2][1] {
 		t.Errorf("1 --> 2 is unvisited, got %t", g.visited[b2.Fn()][2][1])
 	}
-	if g.Visited(b2) {
-		t.Errorf("Block 2 should be unvisited, got %t", g.Visited(b2))
+	if g.NodeVisited(b2) {
+		t.Errorf("Block 2 should be unvisited, got %t", g.NodeVisited(b2))
 	}
 	if g.VisitedOnce(b2) {
 		t.Errorf("Block 2 should be unvisited, got %t", g.VisitedOnce(b2))
 	}
+	if !g.NodePartialVisited(b2) {
+		t.Errorf("Block 2 should be unvisited, got %t", g.NodePartialVisited(b2))
+	}
 
 	g.Visit(b2) // Follow up on If then (jump 2)
-	if !g.Visited(b0) {
-		t.Errorf("Block 0 should be visited, got %t", g.Visited(b0))
+	if !g.NodeVisited(b0) {
+		t.Errorf("Block 0 should be visited, got %t", g.NodeVisited(b0))
 	}
 	if !g.VisitedOnce(b0) {
 		t.Errorf("Block 0 should be visited once, got %t", g.VisitedOnce(b0))
 	}
-	if !g.Visited(b1) {
-		t.Errorf("Block 1 should be visited, got %t", g.Visited(b1))
+	if !g.NodePartialVisited(b0) {
+		t.Errorf("Block 0 should be unvisited no matter what, got %t",
+			g.NodePartialVisited(b0))
+	}
+	if !g.NodeVisited(b1) {
+		t.Errorf("Block 1 should be visited, got %t", g.NodeVisited(b1))
 	}
 	if !g.VisitedOnce(b1) {
 		t.Errorf("Block 1 should be visited once, got %t", g.VisitedOnce(b1))
+	}
+	if g.NodePartialVisited(b1) {
+		t.Errorf("Block 1 should not be unvisited, got %t", g.NodePartialVisited(b1))
 	}
 	if g.visited[b2.Fn()][2][0] {
 		t.Errorf("0 --> 2 is unvisited, got %t", g.visited[b2.Fn()][2][1])
@@ -272,26 +305,36 @@ func TestVisitGraphVisitedOnce(t *testing.T) {
 	if !g.visited[b2.Fn()][2][1] {
 		t.Errorf("1 --> 2 is visited, got %t", g.visited[b2.Fn()][2][1])
 	}
-	if g.Visited(b2) {
-		t.Errorf("Block 2 should be unvisited, got %t", g.Visited(b2))
+	if g.NodeVisited(b2) {
+		t.Errorf("Block 2 should be unvisited, got %t", g.NodeVisited(b2))
 	}
 	if !g.VisitedOnce(b2) {
 		t.Errorf("Block 2 should be visited once (of two), got %t", g.VisitedOnce(b2))
 	}
+	if g.NodePartialVisited(b2) {
+		t.Errorf("Block 2 should not be unvisited, got %t", g.NodePartialVisited(b2))
+	}
 
 	// Revert to if-parent, b0
 	g.VisitFrom(b0, b2) // If else (if 1 else 2)
-	if !g.Visited(b0) {
-		t.Errorf("Block 0 should be visited, got %t", g.Visited(b0))
+	if !g.NodeVisited(b0) {
+		t.Errorf("Block 0 should be visited, got %t", g.NodeVisited(b0))
 	}
 	if !g.VisitedOnce(b0) {
 		t.Errorf("Block 0 should be visited once, got %t", g.VisitedOnce(b0))
 	}
-	if !g.Visited(b1) {
-		t.Errorf("Block 1 should be visited, got %t", g.Visited(b1))
+	if !g.NodePartialVisited(b0) {
+		t.Errorf("Block 0 should be unvisited no matter what, got %t",
+			g.NodePartialVisited(b0))
+	}
+	if !g.NodeVisited(b1) {
+		t.Errorf("Block 1 should be visited, got %t", g.NodeVisited(b1))
 	}
 	if !g.VisitedOnce(b1) {
 		t.Errorf("Block 1 should be visited once, got %t", g.VisitedOnce(b1))
+	}
+	if g.NodePartialVisited(b1) {
+		t.Errorf("Block 1 should not be unvisited, got %t", g.NodePartialVisited(b1))
 	}
 	if !g.visited[b2.Fn()][2][0] {
 		t.Errorf("0 --> 2 is visited, got %t", g.visited[b2.Fn()][2][0])
@@ -299,11 +342,14 @@ func TestVisitGraphVisitedOnce(t *testing.T) {
 	if !g.visited[b2.Fn()][2][1] {
 		t.Errorf("1 --> 2 is visited, got %t", g.visited[b2.Fn()][2][1])
 	}
-	if !g.Visited(b2) {
-		t.Errorf("Block 2 should be visited, got %t", g.Visited(b2))
+	if !g.NodeVisited(b2) {
+		t.Errorf("Block 2 should be visited, got %t", g.NodeVisited(b2))
 	}
 	if !g.VisitedOnce(b2) {
 		t.Errorf("Block 2 should be visited once, got %t", g.VisitedOnce(b2))
+	}
+	if g.NodePartialVisited(b2) {
+		t.Errorf("Block 2 should not be unvisited, got %t", g.NodePartialVisited(b2))
 	}
 }
 
@@ -316,28 +362,28 @@ func TestVisitGraphReentrant(t *testing.T) {
 	b2 := NewVisitNode(mainFn.Blocks[2])
 	g.Visit(b0)
 	g.VisitFrom(b0, b1) // Then branch (toplevel).
-	if !g.Visited(b1) {
-		t.Errorf("0 --> 1 should mark 1 visited, got %t", g.Visited(b1))
+	if !g.NodeVisited(b1) {
+		t.Errorf("0 --> 1 should mark 1 visited, got %t", g.NodeVisited(b1))
 	}
 	t.Logf("Before call: %+v", g.visited)
 	g.Visit(b0) // main calls main in (enters level 1)
 	t.Logf("After call: %+v", g.visited)
-	if g.Visited(b1) {
+	if g.NodeVisited(b1) {
 		t.Errorf("0 --> 1 --> (0 reentrant) should have 1 unvisited, got %t",
-			g.Visited(b1))
+			g.NodeVisited(b1))
 	}
 	g.VisitFrom(b0, b2)
 	g.MarkLast(b2) // exits level 1, pop stack.
 	t.Logf("After return: %+v", g.visited)
-	if !g.Visited(b1) {
+	if !g.NodeVisited(b1) {
 		t.Errorf("0 --> 1 --> (0 reentrant --> 2 end) should have 1 visited, got %t",
-			g.Visited(b1))
+			g.NodeVisited(b1))
 	}
 	g.Visit(b2)
 	g.VisitFrom(b0, b2) // Else branch (toplevel).
-	if g.Visited(b2) {
+	if g.NodeVisited(b2) {
 		t.Errorf("0 --> { 1 --> (0 reentrant --> 2 end) --> 2, 2 } should have 2 visited, got %t",
-			g.Visited(b2))
+			g.NodeVisited(b2))
 	}
 }
 
@@ -350,31 +396,31 @@ func TestVisitGraphReentrantFalse(t *testing.T) {
 	b2 := NewVisitNode(mainFn.Blocks[2])
 	g.Visit(b0)
 	g.VisitFrom(b0, b1) // Then branch (toplevel).
-	if !g.Visited(b1) {
-		t.Errorf("0 --> 1 should mark 1 visited, got %t", g.Visited(b1))
+	if !g.NodeVisited(b1) {
+		t.Errorf("0 --> 1 should mark 1 visited, got %t", g.NodeVisited(b1))
 	}
 	t.Logf("Before call: %+v", g.visited)
 	g.Visit(b0) // main calls main in (enters level 1), resets blockgraph.
 	t.Logf("After call: %+v", g.visited)
-	if !g.Visited(b1) {
+	if !g.NodeVisited(b1) {
 		t.Errorf("0 --> 1 --> (0) should have 1 visited (unchanged from toplevel), got %t",
-			g.Visited(b1))
+			g.NodeVisited(b1))
 	}
 	g.VisitFrom(b0, b2)
 	g.MarkLast(b2) // exits level 1, but since it is non-reentrant, it is noop.
 	t.Logf("After return: %+v", g.visited)
-	if !g.Visited(b1) {
+	if !g.NodeVisited(b1) {
 		t.Errorf("0 --> 1 --> (0 --> 2 end) should have 1 visited, got %t",
-			g.Visited(b1))
+			g.NodeVisited(b1))
 	}
-	if g.Visited(b2) {
+	if g.NodeVisited(b2) {
 		t.Errorf("0 --> { 1 (0 --> 2 end), 2 } should have 2 visited, got %t",
-			g.Visited(b2))
+			g.NodeVisited(b2))
 	}
 	g.Visit(b2)
 	g.VisitFrom(b0, b2) // Else branch (toplevel).
-	if g.Visited(b2) {
+	if g.NodeVisited(b2) {
 		t.Errorf("0 --> { 1 --> (0 --> 2 end) --> 2, 2 } should have 2 visited, got %t",
-			g.Visited(b2))
+			g.NodeVisited(b2))
 	}
 }

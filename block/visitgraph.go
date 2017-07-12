@@ -212,13 +212,12 @@ func (g *VisitGraph) Size() int {
 	return len(g.nodes)
 }
 
-// Visited returns true if the block is visited.
+// NodeVisited returns true if the block is visited.
 // A block is visited if all the in edges are visited.
-func (g *VisitGraph) Visited(toVisit *VisitNode) bool {
+func (g *VisitGraph) NodeVisited(toVisit *VisitNode) bool {
 	g.Lock()
 	defer g.Unlock()
-	blk := toVisit.blk
-	if blk == nil {
+	if toVisit.Blk() == nil {
 		log.Println("Block is nil - assume visited = true")
 		return true
 	}
@@ -236,12 +235,56 @@ func (g *VisitGraph) Visited(toVisit *VisitNode) bool {
 	return false
 }
 
+// EdgeVisited returns true if the edge between the node pair has been visited.
+func (g *VisitGraph) EdgeVisited(from, to *VisitNode) bool {
+	g.Lock()
+	defer g.Unlock()
+	if to.Blk() == nil {
+		log.Println("Block is nil - assume visited = true")
+		return true
+	}
+	if g.nodes == nil { // First visit (main.init#0)
+		return false
+	}
+	if fn, ok := g.visited[to.Fn()]; ok { // Fn is visited before
+		inEdges, _ := fn[to.Index()]
+		return inEdges[from.Index()]
+	}
+	return false
+}
+
+// NodePartialVisited returns false if a block has been Visit()'ed at least once,
+// otherwise true.
+func (g *VisitGraph) NodePartialVisited(toVisit *VisitNode) bool {
+	g.Lock()
+	defer g.Unlock()
+	if toVisit.Blk() == nil {
+		log.Println("Block is nil - assume unvisited = false (nothing to visit)")
+		return false
+	}
+	if g.nodes == nil { // First visit (main.init#0)
+		return true // Unvisited by default.
+	}
+	if fn, ok := g.visited[toVisit.Fn()]; ok { // Fn is visited before
+		inEdges, _ := fn[toVisit.Index()]
+		if len(inEdges) == 0 { // 0 incoming edges
+			return true // Can't tell if blk is visited from incoming. Assume unvisited.
+		}
+		for to := range inEdges {
+			if inEdges[to] { // from at least one of the edges
+				return false
+			}
+		}
+		return true
+	}
+	return true
+}
+
 // VisitedOnce returns true if the block is visited at least once.
 func (g *VisitGraph) VisitedOnce(toVisit *VisitNode) bool {
 	g.Lock()
 	defer g.Unlock()
-	blk := toVisit.blk
-	if blk == nil {
+	if toVisit.Blk() == nil {
 		log.Println("Block is nil - assume visited = true")
 		return true
 	}
