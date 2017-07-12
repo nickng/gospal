@@ -22,7 +22,7 @@ type BlockData struct {
 // Block is an analyser of ssa.BasicBlock.
 type Block struct {
 	*block.VisitGraph
-	data []*BlockData
+	meta []*BlockData
 
 	Callee          *funcs.Instance // Instance of this function.
 	callctx.Context                 // Function context.
@@ -54,7 +54,7 @@ func NewBlock(fn *funcs.Instance, ctx callctx.Context, env *Environment) *Block 
 	}
 	b := Block{
 		VisitGraph: block.NewVisitGraph(false),
-		data:       blks,
+		meta:       blks,
 		Callee:     fn,
 		Context:    ctx,
 		Env:        env,
@@ -67,10 +67,10 @@ func (b *Block) EnterBlk(blk *ssa.BasicBlock) {
 	b.Logger.Debugf("%s Enter %s#%d",
 		b.Logger.Module(), b.Callee.UniqName(), blk.Index)
 	for _, name := range b.Exported.names {
-		b.data[blk.Index].migoFunc.AddParams(&migo.Parameter{Callee: name, Caller: name})
+		b.meta[blk.Index].migoFunc.AddParams(&migo.Parameter{Callee: name, Caller: name})
 	}
-	if !b.Visited(b.data[blk.Index].visitNode) {
-		b.Visit(b.data[blk.Index].visitNode)
+	if !b.NodeVisited(b.meta[blk.Index].visitNode) {
+		b.Visit(b.meta[blk.Index].visitNode)
 		b.visitInstrs(blk)
 	}
 }
@@ -80,14 +80,13 @@ func (b *Block) JumpBlk(curr *ssa.BasicBlock, next *ssa.BasicBlock) {
 	b.Logger.Debugf("%s Jump %s#%d → %d",
 		b.Logger.Module(), b.Callee.UniqName(), curr.Index, next.Index)
 	for _, name := range b.Exported.names {
-		b.data[next.Index].migoFunc.AddParams(&migo.Parameter{Callee: name, Caller: name})
+		b.meta[next.Index].migoFunc.AddParams(&migo.Parameter{Callee: name, Caller: name})
 	}
-	bnCurr, bnNext := b.data[curr.Index].visitNode, b.data[next.Index].visitNode
-	if !b.Visited(bnNext) {
-		// Marks the bnCurr -> bnNext edge visited.
-		b.VisitFrom(bnCurr, bnNext)
-		if bnCurr.Index() == bnNext.Index() && b.Visited(bnNext) {
-		} else {
+	blkMeta := b.meta[next.Index]
+	if !b.NodeVisited(blkMeta.visitNode) {
+		if !b.EdgeVisited(b.meta[curr.Index].visitNode, blkMeta.visitNode) {
+			// Marks the bnCurr -> bnNext edge visited.
+			b.VisitFrom(b.meta[curr.Index].visitNode, blkMeta.visitNode)
 			b.visitInstrs(next)
 		}
 	}
@@ -120,10 +119,10 @@ func (b *Block) SetLogger(l *Logger) {
 
 // visitInstrs traverses the instructions inside the (unvisited) block.
 func (b *Block) visitInstrs(blk *ssa.BasicBlock) {
-	blkData := b.data[blk.Index]
+	blkMeta := b.meta[blk.Index]
 
 	// Create a new instruction visitor for a new MiGo function.
-	blkBody := NewInstruction(b.Callee, b.Context, b.Env, blkData.migoFunc)
+	blkBody := NewInstruction(b.Callee, b.Context, b.Env, blkMeta.migoFunc)
 	blkBody.Exported = b.Exported
 	blkBody.SetLogger(b.Logger)
 	// Handle control-flow instructions.
@@ -131,18 +130,24 @@ func (b *Block) visitInstrs(blk *ssa.BasicBlock) {
 		switch instr := instr.(type) { // These should be at the end of the blocks.
 		case *ssa.Jump:
 			blkBody.VisitJump(instr)
-			call := migoCall(b.Callee.Name(), blk.Succs[0], b.Exported)
-			// JumpBlk rewrites parameter so has to come after call.
-			b.JumpBlk(blk, blk.Succs[0])
-			blkData.migoFunc.AddStmts(call)
+			if b.NodeVisited(blkMeta.visitNode) {
+				blkMeta.migoFunc.AddStmts(migoCall(b.Callee.Name(), blk.Succs[0], b.Exported))
+			}
+			if !b.EdgeVisited(blkMeta.visitNode, b.meta[blk.Succs[0].Index].visitNode) {
+				b.JumpBlk(blk, blk.Succs[0])
+			}
 
 		case *ssa.If:
 			blkBody.VisitIf(instr)
 			b.Loop.ExtractCond(instr)
-			b.JumpBlk(blk, blk.Succs[0])
-			b.JumpBlk(blk, blk.Succs[1])
+			if !b.EdgeVisited(blkMeta.visitNode, b.meta[blk.Succs[0].Index].visitNode) {
+				b.JumpBlk(blk, blk.Succs[0])
+			}
+			if !b.EdgeVisited(blkMeta.visitNode, b.meta[blk.Succs[1].Index].visitNode) {
+				b.JumpBlk(blk, blk.Succs[1])
+			}
 			// Output if-then-else MiGo once.
-			if b.Visited(blkData.visitNode) && !blkData.emitted {
+			if b.NodeVisited(blkMeta.visitNode) && !blkMeta.emitted {
 				if l := b.Loop.ForLoopAt(blk); blk.Comment == "for.loop" && l.ParamsOK() {
 					loopBody := migoCall(b.Callee.Name(), blk.Parent().Blocks[l.BodyIdx()], blkBody.Exported)
 					loopDone := migoCall(b.Callee.Name(), blk.Parent().Blocks[l.DoneIdx()], blkBody.Exported)
@@ -152,11 +157,11 @@ func (b *Block) visitInstrs(blk *ssa.BasicBlock) {
 						Then:    []migo.Statement{loopBody},
 						Else:    []migo.Statement{loopDone},
 					}
-					blkData.migoFunc.AddStmts(iffor)
-					blkData.emitted = true
+					blkMeta.migoFunc.AddStmts(iffor)
+					blkMeta.emitted = true
 				} else if isSelCondBlk(instr.Cond) {
 					// Select case body block.
-					blkData.emitted = true
+					blkMeta.emitted = true
 				} else if blk.Comment != "cond.true" && blk.Comment != "cond.false" {
 					callThen := migoCall(b.Callee.Name(), blk.Succs[0], blkBody.Exported)
 					callElse := migoCall(b.Callee.Name(), blk.Succs[1], blkBody.Exported)
@@ -165,38 +170,40 @@ func (b *Block) visitInstrs(blk *ssa.BasicBlock) {
 						Then: []migo.Statement{callThen},
 						Else: []migo.Statement{callElse},
 					}
-					blkData.migoFunc.AddStmts(ifstmt)
-					blkData.emitted = true
+					blkMeta.migoFunc.AddStmts(ifstmt)
+					blkMeta.emitted = true
 				}
 			}
 
 		case *ssa.Return:
-			if b.Visited(blkData.visitNode) {
+			if b.NodeVisited(blkMeta.visitNode) {
 				blkBody.VisitReturn(instr)
 			}
 			b.ExitBlk(blk)
 
 		case *ssa.Call:
-			if b.Visited(blkData.visitNode) {
+			if b.NodeVisited(blkMeta.visitNode) {
 				b.Logger.Debugf("%s ---- CALL ---- #%d\n\t%s",
-					b.Logger.Module(), blkData.visitNode.Index(), b.Env.getPos(instr))
+					b.Logger.Module(), blkMeta.visitNode.Index(), b.Env.getPos(instr))
 				blkBody.VisitCall(instr)
 			}
 
 		case *ssa.Go:
-			if b.Visited(blkData.visitNode) {
+			if b.NodeVisited(blkMeta.visitNode) {
 				b.Logger.Debugf("%s ---- SPAWN ---- #%d\n\t%s",
-					b.Logger.Module(), blkData.visitNode.Index(), b.Env.getPos(instr))
+					b.Logger.Module(), blkMeta.visitNode.Index(), b.Env.getPos(instr))
 				blkBody.VisitGo(instr)
 			}
 
 		case *ssa.Phi:
 			blkBody.VisitPhi(instr)
-			b.mergePhi(blkData, instr)
+			b.mergePhi(blkMeta, instr)
 			b.Loop.ExtractIndex(instr)
 
 		default:
-			blkBody.VisitInstr(instr)
+			if b.NodeVisited(blkMeta.visitNode) {
+				blkBody.VisitInstr(instr)
+			}
 		}
 	}
 }

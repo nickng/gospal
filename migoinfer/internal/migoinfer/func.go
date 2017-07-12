@@ -75,7 +75,7 @@ func (f *Function) ExitFunc(fn *ssa.Function) {
 	}
 	if b, ok := f.Analyser.(*Block); b != nil && ok {
 		// Since a function is complete analysed, we can print its content.
-		for _, data := range b.data {
+		for _, data := range b.meta {
 			f.Env.Prog.AddFunction(data.migoFunc)
 		}
 	}

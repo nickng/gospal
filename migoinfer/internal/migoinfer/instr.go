@@ -493,7 +493,7 @@ func (v *Instruction) doCall(c *ssa.Call, def *funcs.Definition) {
 	migoParams := paramsToMigoParam(v, fn, call)
 	stmt.AddParams(migoParams...)
 	if b, ok := fn.Analyser.(*Block); ok {
-		for _, data := range b.data {
+		for _, data := range b.meta {
 			data.migoFunc.AddParams(migoParams...)
 		}
 	}
@@ -518,7 +518,7 @@ func (v *Instruction) doGo(g *ssa.Go, def *funcs.Definition) {
 	migoParams := paramsToMigoParam(v, fn, call)
 	stmt.AddParams(migoParams...)
 	if b, ok := fn.Analyser.(*Block); ok {
-		for _, data := range b.data {
+		for _, data := range b.meta {
 			data.migoFunc.AddParams(migoParams...)
 		}
 	}
