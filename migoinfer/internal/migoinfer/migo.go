@@ -178,7 +178,7 @@ func paramsToMigoParam(v *Instruction, fn *Function, call *funcs.Call) []*migo.P
 			if mock, ok := argStruct.(store.MockValue); ok {
 				v.Logger.Debugf("%s %s is a nil struct (arg) (type:%s)",
 					v.Logger.Module(), arg.Name(), arg.Type().String())
-				argStruct = structs.New(mock, arg.(ssa.Value))
+				argStruct = structs.New(mock, arg)
 			} else if _, ok := argStruct.(*structs.Struct); !ok {
 				argStruct = structs.New(v.Callee, arg.(ssa.Value))
 			}

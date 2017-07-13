@@ -27,7 +27,12 @@ type Struct struct {
 	Fields []Field     // Fields references.
 }
 
-func New(scope store.Value, v ssa.Value) *Struct {
+// Type is an interface for creating new struct from typable things.
+type Typer interface {
+	Type() types.Type
+}
+
+func New(scope store.Value, v Typer) *Struct {
 	var s *Struct
 	switch v := v.Type().Underlying().(type) {
 	case *types.Struct:
@@ -43,7 +48,10 @@ func New(scope store.Value, v ssa.Value) *Struct {
 			v.Type().String())
 		return nil
 	}
-	s.ns, s.Value = scope, v
+	s.ns = scope
+	if v, ok := v.(ssa.Value); ok {
+		s.Value = v
+	}
 	return s
 }
 
