@@ -45,6 +45,7 @@ func New(info *ssa.Info, w io.Writer) *Inferer {
 }
 
 func (i *Inferer) Analyse() {
+	go i.Env.HandleErrors()
 	// Sync error ignored. See https://github.com/uber-go/zap/issues/328
 	defer i.Logger.Sync()
 
