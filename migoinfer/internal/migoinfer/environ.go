@@ -41,7 +41,7 @@ func (env Environment) HandleErrors() {
 	logger := log.New(os.Stderr, "ERROR: ", 0)
 	for err := range env.Errors {
 		if p, ok := err.(Poser); ok {
-			logger.Printf("%s: %s", env.Info.FSet.Position(p.Pos()).String(), err)
+			logger.Printf("%s\n\t%s", err, env.getPos(p), err)
 		} else {
 			logger.Println(err)
 		}

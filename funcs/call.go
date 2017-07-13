@@ -32,12 +32,16 @@ func MakeCall(d *Definition, call *ssa.CallCommon, ret ssa.Value) *Call {
 		c.Args = getFakeArgs(d.Function)
 	}
 	if len(c.Args) != d.NParam {
-		log.Fatalf("%s: Mismatched argument(%d)\n%s: parameter(%d)",
-			d.Function.Prog.Fset.Position(call.Pos()).String(), len(c.Args),
-			d.Function.Prog.Fset.Position(d.Function.Pos()).String(), d.NParam)
+		log.Fatalf("Mismatched argument(%d)/parameter(%d)\n\t%s\n\t%s",
+			len(c.Args), d.NParam,
+			d.Function.Prog.Fset.Position(call.Pos()).String(),
+			d.Function.Prog.Fset.Position(d.Function.Pos()).String())
 	}
 	if len(d.bindings) != d.NFreeVar {
-		log.Println("Mismatched capture/binding")
+		log.Printf("Mismatched capture(%d)/binding(%d)\n\t%s\n\t%s",
+			len(d.bindings), d.NFreeVar,
+			d.Function.Prog.Fset.Position(call.Pos()).String(),
+			d.Function.Prog.Fset.Position(d.Function.Pos()).String())
 	}
 	c.Parameters = make([]store.Key, d.NParam+d.NFreeVar+d.NReturn)
 	for i, arg := range c.Args {
