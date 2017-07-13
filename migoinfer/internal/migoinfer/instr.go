@@ -703,14 +703,14 @@ func (v *Instruction) bindCallParameters(call *funcs.Call, fn *Function) {
 			argStruct := v.Get(arg)
 			paramStruct := fn.Get(param)
 			if mock, ok := argStruct.(store.MockValue); ok {
-				v.Logger.Warnf("%s %s is a nil struct (arg) (type:%s)",
+				v.Logger.Debugf("%s %s is a nil struct (arg) (type:%s)",
 					v.Logger.Module(), arg.Name(), arg.Type().String())
 				argStruct = structs.New(mock, arg.(ssa.Value))
 			} else if _, ok := argStruct.(*structs.Struct); !ok {
 				argStruct = structs.New(mock, arg.(ssa.Value))
 			}
 			if mock, ok := paramStruct.(store.MockValue); ok {
-				v.Logger.Warnf("%s %s is a nil struct (param) (type:%s)",
+				v.Logger.Debugf("%s %s is a nil struct (param) (type:%s)",
 					v.Logger.Module(), param.Name(), param.Type().String())
 				paramStruct = structs.New(mock, param.(ssa.Value))
 			} else if _, ok := paramStruct.(*structs.Struct); !ok {
