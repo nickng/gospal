@@ -450,6 +450,10 @@ func (v *Instruction) createDefinition(c *ssa.CallCommon) *funcs.Definition {
 
 func (v *Instruction) doCall(c *ssa.Call, def *funcs.Definition) {
 	call := funcs.MakeCall(def, c.Common(), c)
+	if call == nil {
+		v.Logger.Infof("%s Skipping nil call %s", v.Logger.Module(), c.Common())
+		return
+	}
 	v.Logger.Debugf("%s Definition: %v", v.Logger.Module(), def.String())
 	v.Logger.Debugf("%s      Call: %v", v.Logger.Module(), call.String())
 	fn := NewFunction(call, v.Context, v.Env)
@@ -502,6 +506,10 @@ func (v *Instruction) doCall(c *ssa.Call, def *funcs.Definition) {
 
 func (v *Instruction) doGo(g *ssa.Go, def *funcs.Definition) {
 	call := funcs.MakeCall(def, g.Common(), nil)
+	if call == nil {
+		v.Logger.Infof("%s Skipping nil go %s", v.Logger.Module(), g.Common())
+		return
+	}
 	v.Logger.Debugf("%s Definition: %v", v.Logger.Module(), def.String())
 	v.Logger.Debugf("%s    Go/Call: %v", v.Logger.Module(), call.String())
 	fn := NewFunction(call, v.Context, v.Env)

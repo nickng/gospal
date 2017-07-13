@@ -42,6 +42,9 @@ func MakeCall(d *Definition, call *ssa.CallCommon, ret ssa.Value) *Call {
 			len(d.bindings), d.NFreeVar,
 			d.Function.Prog.Fset.Position(call.Pos()).String(),
 			d.Function.Prog.Fset.Position(d.Function.Pos()).String())
+		// TODO(nickng) this means matching arg-param is impossible but
+		// perhaps there are ways to recover from this?
+		return nil
 	}
 	c.Parameters = make([]store.Key, d.NParam+d.NFreeVar+d.NReturn)
 	for i, arg := range c.Args {
