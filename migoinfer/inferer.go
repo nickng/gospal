@@ -16,9 +16,10 @@ import (
 
 // Inferer is the main MiGo inference entry point.
 type Inferer struct {
-	Env  migoinfer.Environment // Program environment.
-	Info *ssa.Info             // SSA IR.
-	MiGo *migo.Program         // MiGo program.
+	Env       migoinfer.Environment // Program environment.
+	Info      *ssa.Info             // SSA IR.
+	MiGo      *migo.Program         // MiGo program.
+	EntryFunc string
 
 	Raw bool
 
@@ -44,6 +45,10 @@ func New(info *ssa.Info, w io.Writer) *Inferer {
 	return &inferer
 }
 
+func (i *Inferer) SetEntryFunc(path string) {
+	i.EntryFunc = path
+}
+
 func (i *Inferer) Analyse() {
 	go i.Env.HandleErrors()
 	// Sync error ignored. See https://github.com/uber-go/zap/issues/328
@@ -56,36 +61,55 @@ func (i *Inferer) Analyse() {
 		pkg.InitGlobals(p)
 		pkg.VisitInit(p)
 	}
-	// Find main packages to start analysis.
-	mains, err := ssa.MainPkgs(i.Info.Prog, false)
-	if err != nil {
-		log.Fatal("Cannot find main package:", err)
-	}
-	// Call context
-	ctx := callctx.Toplevel()
-	if l, ok := ctx.(store.Logger); ok {
-		l.SetLog(i.errWriter)
-	}
-	for _, main := range mains {
-		if mainFn := main.Func("main"); mainFn != nil {
-			mainDef := funcs.MakeCall(funcs.MakeDefinition(mainFn), nil, nil)
-			mainFnAnalyser := migoinfer.NewFunction(mainDef, ctx, &i.Env)
-			mainFnAnalyser.SetLogger(i.Logger)
-			mainFnAnalyser.EnterFunc(mainDef.Function())
+	if i.EntryFunc == "" { // main.main
+		// Find main packages to start analysis.
+		mains, err := ssa.MainPkgs(i.Info.Prog, false)
+		if err != nil {
+			log.Fatal("Cannot find main package:", err)
+		}
+		// Call context
+		ctx := callctx.Toplevel()
+		if l, ok := ctx.(store.Logger); ok {
+			l.SetLog(i.errWriter)
+		}
+		for _, main := range mains {
+			if mainFn := main.Func("main"); mainFn != nil {
+				mainDef := funcs.MakeCall(funcs.MakeDefinition(mainFn), nil, nil)
+				mainFnAnalyser := migoinfer.NewFunction(mainDef, ctx, &i.Env)
+				mainFnAnalyser.SetLogger(i.Logger)
+				mainFnAnalyser.EnterFunc(mainDef.Function())
+			}
+		}
+	} else {
+		fn, err := i.Info.FindFunc(i.EntryFunc)
+		if err != nil {
+			log.Fatalf("Cannot find entry function %s", i.EntryFunc)
+		}
+		ctx := callctx.Toplevel()
+		if l, ok := ctx.(store.Logger); ok {
+			l.SetLog(i.errWriter)
+		}
+		if fn != nil {
+			fnDef := funcs.MakeCall(funcs.MakeDefinition(fn), nil, nil)
+			fnAnalyser := migoinfer.NewFunction(fnDef, ctx, &i.Env)
+			fnAnalyser.SetLogger(i.Logger)
+			fnAnalyser.EnterFunc(fnDef.Function())
 		}
 	}
 	if !i.Raw {
 		i.Env.Prog.CleanUp()
 	}
-	// Print main.main first.
-	for _, f := range i.Env.Prog.Funcs {
-		if f.SimpleName() == "main.main" {
-			fmt.Fprintf(i.outWriter, f.String())
+	if i.EntryFunc == "" { // main.main
+		// Print main.main first.
+		for _, f := range i.Env.Prog.Funcs {
+			if f.SimpleName() == "main.main" {
+				fmt.Fprintf(i.outWriter, f.String())
+			}
 		}
-	}
-	for _, f := range i.Env.Prog.Funcs {
-		if f.SimpleName() != "main.main" {
-			fmt.Fprintf(i.outWriter, f.String())
+		for _, f := range i.Env.Prog.Funcs {
+			if f.SimpleName() != "main.main" {
+				fmt.Fprintf(i.outWriter, f.String())
+			}
 		}
 	}
 }

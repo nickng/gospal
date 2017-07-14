@@ -27,6 +27,7 @@ Options:
 var (
 	logPath   string
 	showRaw   bool
+	entryFunc string
 	logFile   string
 	logWriter = ioutil.Discard
 )
@@ -34,6 +35,7 @@ var (
 func init() {
 	flag.StringVar(&logPath, "log", "", "Specify analysis log file (use '-' for stderr)")
 	flag.BoolVar(&showRaw, "raw", false, "Show raw unfiltered MiGo")
+	flag.StringVar(&entryFunc, "entry", "", `Specify the function to view (format: (import/path).FuncName, empty means main.main)`)
 }
 
 func main() {
@@ -67,6 +69,9 @@ func main() {
 	inferer := migoinfer.New(info, logWriter)
 	if logFile != "" {
 		inferer.AddLogFiles(logFile)
+	}
+	if entryFunc != "" {
+		inferer.SetEntryFunc(entryFunc)
 	}
 	inferer.SetOutput(os.Stdout)
 	if showRaw {
