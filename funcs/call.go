@@ -28,23 +28,25 @@ func MakeCall(d *Definition, call *ssa.CallCommon, ret ssa.Value) *Call {
 	// Function call arguments.
 	if call != nil {
 		c.Args = getArgs(call)
+		if len(c.Args) != d.NParam {
+			log.Fatalf("Mismatched argument(%d)/parameter(%d)\n\t%s\n\t%s",
+				len(c.Args), d.NParam,
+				d.Function.Prog.Fset.Position(call.Pos()).String(),
+				d.Function.Prog.Fset.Position(d.Function.Pos()).String())
+		}
+		if len(d.bindings) != d.NFreeVar {
+			log.Printf("Mismatched capture(%d)/binding(%d)\n\t%s\n\t%s",
+				len(d.bindings), d.NFreeVar,
+				d.Function.Prog.Fset.Position(call.Pos()).String(),
+				d.Function.Prog.Fset.Position(d.Function.Pos()).String())
+			// TODO(nickng) this means matching arg-param is impossible but
+			// perhaps there are ways to recover from this?
+			return nil
+		}
 	} else {
 		c.Args = getFakeArgs(d.Function)
-	}
-	if len(c.Args) != d.NParam {
-		log.Fatalf("Mismatched argument(%d)/parameter(%d)\n\t%s\n\t%s",
-			len(c.Args), d.NParam,
-			d.Function.Prog.Fset.Position(call.Pos()).String(),
-			d.Function.Prog.Fset.Position(d.Function.Pos()).String())
-	}
-	if len(d.bindings) != d.NFreeVar {
-		log.Printf("Mismatched capture(%d)/binding(%d)\n\t%s\n\t%s",
-			len(d.bindings), d.NFreeVar,
-			d.Function.Prog.Fset.Position(call.Pos()).String(),
-			d.Function.Prog.Fset.Position(d.Function.Pos()).String())
-		// TODO(nickng) this means matching arg-param is impossible but
-		// perhaps there are ways to recover from this?
-		return nil
+		// Since fake args are created, the args/params and bindings/freevars
+		// always match.
 	}
 	c.Parameters = make([]store.Key, d.NParam+d.NFreeVar+d.NReturn)
 	for i, arg := range c.Args {
