@@ -3,6 +3,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -11,28 +12,48 @@ import (
 	"github.com/nickng/gospal/ssa/build"
 )
 
+const (
+	Usage = `migoinfer is a tool for infering MiGo types from Go source code.
+
+Usage:
+
+  migoinfer [options] file.go [files.go...]
+
+Options:
+
+`
+)
+
 var (
-	logPath   = flag.String("log", "", "Specify analysis log file (use '-' for stderr)")
-	showRaw   = flag.Bool("raw", false, "Show raw unfiltered MiGo")
+	logPath   string
+	showRaw   bool
+	logFile   string
 	logWriter = ioutil.Discard
-	logFile   = ""
 )
 
 func init() {
-	flag.Parse()
+	flag.StringVar(&logPath, "log", "", "Specify analysis log file (use '-' for stderr)")
+	flag.BoolVar(&showRaw, "raw", false, "Show raw unfiltered MiGo")
 }
 
 func main() {
+	flag.Parse()
+	if flag.NArg() == 0 {
+		fmt.Fprintf(os.Stderr, Usage)
+		flag.PrintDefaults()
+		os.Exit(0)
+	}
+
 	conf := build.FromFiles(flag.Args()).Default()
-	switch *logPath {
+	switch logPath {
 	case "":
 	case "-":
 		logWriter = os.Stderr
 		conf.WithBuildLog(logWriter, log.LstdFlags)
 	default:
-		f, err := os.Create(*logPath)
+		f, err := os.Create(logPath)
 		if err != nil {
-			log.Fatalf("Cannot create log %s: %v", *logPath, err)
+			log.Fatalf("Cannot create log %s: %v", logPath, err)
 		}
 		defer f.Close()
 		conf = conf.WithBuildLog(f, log.LstdFlags)
@@ -48,7 +69,7 @@ func main() {
 		inferer.AddLogFiles(logFile)
 	}
 	inferer.SetOutput(os.Stdout)
-	if *showRaw {
+	if showRaw {
 		inferer.Raw = true
 	}
 	inferer.Analyse()
