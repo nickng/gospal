@@ -1,6 +1,7 @@
 package ssa
 
 import (
+	"errors"
 	"io"
 	"sort"
 
@@ -76,4 +77,17 @@ func (info *Info) WriteAll(w io.Writer) (int64, error) {
 		}
 	}
 	return n, nil
+}
+
+// WriteFunc writes Functions specified by funcPath to w in human readable SSA
+// IR instruction format.
+func (info *Info) WriteFunc(w io.Writer, funcPath string) (int64, error) {
+	f, err := info.FindFunc(funcPath)
+	if err != nil {
+		return 0, err
+	}
+	if f == nil {
+		return 0, errors.New("function not found")
+	}
+	return f.WriteTo(w)
 }

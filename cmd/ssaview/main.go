@@ -28,14 +28,18 @@ var (
 	buildlogPath string
 	defaultArgs  bool
 	outPath      string
+	viewFunc     string
 
 	out io.Writer
 )
+
+const mainMain = "main.main"
 
 func init() {
 	flag.BoolVar(&defaultArgs, "default", true, "Use default SSA build arguments")
 	flag.StringVar(&buildlogPath, "log", "", "Specify build log file (use '-' for stdout)")
 	flag.StringVar(&outPath, "out", "", "Specify output file (default: stdout)")
+	flag.StringVar(&viewFunc, "func", mainMain, `Specify the function to view (format: (import/path).FuncName`)
 }
 
 func main() {
@@ -80,7 +84,13 @@ func main() {
 	if err != nil {
 		log.Fatal("Cannot build SSA from files:", err)
 	}
-	if _, err := info.WriteTo(out); err != nil {
-		log.Fatal("Cannot write SSA:", err)
+	if viewFunc != mainMain {
+		if _, err := info.WriteFunc(out, viewFunc); err != nil {
+			log.Fatal("Cannot write SSA:", err)
+		}
+	} else {
+		if _, err := info.WriteTo(out); err != nil {
+			log.Fatal("Cannot write SSA:", err)
+		}
 	}
 }
