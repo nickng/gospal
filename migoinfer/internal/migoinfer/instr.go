@@ -40,24 +40,24 @@ func NewInstruction(callee *funcs.Instance, ctx callctx.Context, env *Environmen
 func (v *Instruction) VisitInstr(instr ssa.Instruction) {
 	switch instr := instr.(type) {
 	case *ssa.Alloc:
-		v.Logger.Debugf("%s Alloc: %s = %s\n\t%s",
-			v.Logger.Module(), instr.Name(), instr, v.Env.getPos(instr))
+		v.Debugf("%s Alloc: %s = %s\n\t%s",
+			v.Module(), instr.Name(), instr, v.Env.getPos(instr))
 		v.VisitAlloc(instr)
 
 	case *ssa.BinOp:
 		v.VisitBinOp(instr)
 
 	case *ssa.Call:
-		v.Logger.Debugf("%s Call: %s = %s\n\t%s",
-			v.Logger.Module(), instr.Name(), instr, v.Env.getPos(instr))
+		v.Debugf("%s Call: %s = %s\n\t%s",
+			v.Module(), instr.Name(), instr, v.Env.getPos(instr))
 		v.VisitCall(instr)
 
 	case *ssa.ChangeInterface:
 		v.VisitChangeInterface(instr)
 
 	case *ssa.ChangeType:
-		v.Logger.Debugf("%s ChangeType: %s = %s\n\t%s",
-			v.Logger.Module(), instr.Name(), instr, v.Env.getPos(instr))
+		v.Debugf("%s ChangeType: %s = %s\n\t%s",
+			v.Module(), instr.Name(), instr, v.Env.getPos(instr))
 		v.VisitChangeType(instr)
 
 	case *ssa.Convert:
@@ -76,13 +76,13 @@ func (v *Instruction) VisitInstr(instr ssa.Instruction) {
 		v.VisitField(instr)
 
 	case *ssa.FieldAddr:
-		v.Logger.Debugf("%s FieldAddr: %s = %s\n\t%s",
-			v.Logger.Module(), instr.Name(), instr, v.Env.getPos(instr))
+		v.Debugf("%s FieldAddr: %s = %s\n\t%s",
+			v.Module(), instr.Name(), instr, v.Env.getPos(instr))
 		v.VisitFieldAddr(instr)
 
 	case *ssa.Go:
-		v.Logger.Debugf("%s Go: %s\n\t%s",
-			v.Logger.Module(), instr, v.Env.getPos(instr))
+		v.Debugf("%s Go: %s\n\t%s",
+			v.Module(), instr, v.Env.getPos(instr))
 		v.VisitGo(instr)
 
 	case *ssa.If:
@@ -101,18 +101,18 @@ func (v *Instruction) VisitInstr(instr ssa.Instruction) {
 		v.VisitLookup(instr)
 
 	case *ssa.MakeChan:
-		v.Logger.Debugf("%s MakeChan %s = %s\n\t%s",
-			v.Logger.Module(), instr.Name(), instr, v.Env.getPos(instr))
+		v.Debugf("%s MakeChan %s = %s\n\t%s",
+			v.Module(), instr.Name(), instr, v.Env.getPos(instr))
 		v.VisitMakeChan(instr)
 
 	case *ssa.MakeClosure:
-		v.Logger.Debugf("%s MakeClosure %s = %s\n\t%s",
-			v.Logger.Module(), instr.Name(), instr, v.Env.getPos(instr))
+		v.Debugf("%s MakeClosure %s = %s\n\t%s",
+			v.Module(), instr.Name(), instr, v.Env.getPos(instr))
 		v.VisitMakeClosure(instr)
 
 	case *ssa.MakeInterface:
-		v.Logger.Debugf("%s MakeInterface %s = %s\n\t%s",
-			v.Logger.Module(), instr.Name(), instr, v.Env.getPos(instr))
+		v.Debugf("%s MakeInterface %s = %s\n\t%s",
+			v.Module(), instr.Name(), instr, v.Env.getPos(instr))
 		v.VisitMakeInterface(instr)
 
 	case *ssa.MakeMap:
@@ -146,8 +146,8 @@ func (v *Instruction) VisitInstr(instr ssa.Instruction) {
 		v.VisitSelect(instr)
 
 	case *ssa.Send:
-		v.Logger.Debugf("%s Send: %s\n\t%s",
-			v.Logger.Module(), instr, v.Env.getPos(instr))
+		v.Debugf("%s Send: %s\n\t%s",
+			v.Module(), instr, v.Env.getPos(instr))
 		v.VisitSend(instr)
 
 	case *ssa.Slice:
@@ -163,8 +163,8 @@ func (v *Instruction) VisitInstr(instr ssa.Instruction) {
 		v.VisitUnOp(instr)
 
 	default:
-		v.Logger.Fatalf("%s Unhandled instruction %q (%T)\n\t%s",
-			v.Logger.Module(), instr, instr, v.Env.getPos(instr))
+		v.Fatalf("%s Unhandled instruction %q (%T)\n\t%s",
+			v.Module(), instr, instr, v.Env.getPos(instr))
 	}
 }
 
@@ -172,13 +172,13 @@ func (v *Instruction) VisitAlloc(instr *ssa.Alloc) {
 	t := instr.Type().(*types.Pointer).Elem()
 	switch t := t.Underlying().(type) {
 	case *types.Struct:
-		v.Logger.Debugf("%s Allocate struct: %T", v.Logger.Module(), t)
+		v.Debugf("%s Allocate struct: %T", v.Module(), t)
 		if updater, ok := v.Context.(callctx.Updater); ok {
 			updater.PutUniq(instr, structs.New(v.Callee, instr))
 		}
 	default:
-		v.Logger.Debugf("%s Alloc %s = type %s (delay write)",
-			v.Logger.Module(), instr.Name(), t.String())
+		v.Debugf("%s Alloc %s = type %s (delay write)",
+			v.Module(), instr.Name(), t.String())
 	}
 }
 
@@ -226,8 +226,8 @@ func (v *Instruction) VisitFieldAddr(instr *ssa.FieldAddr) {
 	case *structs.Struct:
 		if field := struc.Fields[instr.Field]; field != nil {
 			if fieldVal := v.Get(field); fieldVal != nil {
-				v.Logger.Debugf("%s Field %s exists, replacing with %s",
-					v.Logger.Module(), field, instr.Name())
+				v.Debugf("%s Field %s exists, replacing with %s",
+					v.Module(), field, instr.Name())
 				v.Put(instr, fieldVal)
 				// If field is a FieldParam, replace field key and export.
 				if _, ok := field.(structs.FieldParam); ok {
@@ -245,11 +245,11 @@ func (v *Instruction) VisitFieldAddr(instr *ssa.FieldAddr) {
 			struc.Fields[instr.Field] = instr
 		}
 	case *store.MockValue:
-		v.Logger.Debugf("%s struct undefined\n\t%s",
-			v.Logger.Module(), v.Env.getPos(instr))
+		v.Debugf("%s struct undefined\n\t%s",
+			v.Module(), v.Env.getPos(instr))
 	default:
-		v.Logger.Warnf("%s FieldAddr: %v is not a struct\t%s\n\t%s",
-			v.Logger.Module(), instr.X, instr.X.Type().Underlying(), v.Env.getPos(instr))
+		v.Warnf("%s FieldAddr: %v is not a struct\t%s\n\t%s",
+			v.Module(), instr.X, instr.X.Type().Underlying(), v.Env.getPos(instr))
 	}
 }
 
@@ -306,8 +306,8 @@ func (v *Instruction) VisitMakeChan(instr *ssa.MakeChan) {
 		}
 	}
 	if isReturnValue || isParameter {
-		v.Logger.Debugf("%s %s = MakeChan skipped\n\treturn value? %t\n\tparameter? %t",
-			v.Logger.Module(),
+		v.Debugf("%s %s = MakeChan skipped\n\treturn value? %t\n\tparameter? %t",
+			v.Module(),
 			instr.Name(), isReturnValue, isParameter)
 		v.MiGo.AddStmts(&migo.TauStatement{})
 		return
@@ -322,12 +322,12 @@ func (v *Instruction) VisitMakeClosure(instr *ssa.MakeClosure) {
 	v.Put(instr, def)    // For calling the closure.
 	v.Put(instr.Fn, def) // For reusing the closure.
 	f := v.Get(instr)
-	v.Logger.Debugf("%s ↳ %s", v.Logger.Module(), f.(*funcs.Definition).String())
+	v.Debugf("%s ↳ %s", v.Module(), f.(*funcs.Definition).String())
 }
 
 func (v *Instruction) VisitMakeInterface(instr *ssa.MakeInterface) {
 	iface := v.Get(instr.X)
-	v.Logger.Debugf("%s iface → %v", v.Logger.Module(), iface)
+	v.Debugf("%s iface → %v", v.Module(), iface)
 	v.Put(instr, iface)
 }
 
@@ -378,7 +378,7 @@ func (v *Instruction) VisitStore(instr *ssa.Store) {
 	if val != nil {
 		v.Put(instr.Addr, val)
 	} else {
-		v.Logger.Fatalf("Store: %s is not defined", instr.Val.Name())
+		v.Fatalf("Store: %s is not defined", instr.Val.Name())
 	}
 }
 
@@ -395,7 +395,7 @@ func (v *Instruction) VisitUnOp(instr *ssa.UnOp) {
 			v.Env.Errors <- errors.WithStack(err) // internal error.
 		}
 	default:
-		v.Logger.Debugf("%s UnOp", v.Logger.Module(), instr)
+		v.Debugf("%s UnOp", v.Module(), instr)
 	}
 }
 
@@ -416,18 +416,18 @@ func (v *Instruction) createDefinition(c *ssa.CallCommon) *funcs.Definition {
 				def = funcs.MakeDefinition(c.StaticCallee())
 				v.Put(fn, def)
 			}
-			v.Logger.Debugf("%s ↳ def %s", v.Logger.Module(), def.String())
+			v.Debugf("%s ↳ def %s", v.Module(), def.String())
 			return def
 		case *ssa.Builtin:
 			if fn.Name() == "close" {
 				if len(c.Args) != 1 {
-					v.Logger.Fatal("%s inconsistent: close should have 1 arg",
-						v.Logger.Module())
+					v.Fatal("%s inconsistent: close should have 1 arg",
+						v.Module())
 				}
 				exported := v.FindExported(v.Context, v.Get(c.Args[0]))
 				v.MiGo.AddStmts(&migo.CloseStatement{Chan: exported.Name()})
 			}
-			v.Logger.Debugf("%s %v", v.Logger.Module(), fn)
+			v.Debugf("%s %v", v.Module(), fn)
 		}
 		return nil
 	}
@@ -435,8 +435,8 @@ func (v *Instruction) createDefinition(c *ssa.CallCommon) *funcs.Definition {
 	impl := c.Value // Implementation struct/object.
 	implFn, err := fn.LookupMethodImpl(v.Env.Info.Prog, c.Method, impl)
 	if err != nil {
-		v.Logger.Infof("%s Cannot find method %v for invoke call %s",
-			v.Logger.Module(), c, c.String())
+		v.Infof("%s Cannot find method %v for invoke call %s",
+			v.Module(), c, c.String())
 		return nil // skip
 	}
 	def, ok := v.Get(implFn).(*funcs.Definition)
@@ -444,22 +444,22 @@ func (v *Instruction) createDefinition(c *ssa.CallCommon) *funcs.Definition {
 		def = funcs.MakeDefinition(implFn)
 		v.Put(implFn, def)
 	}
-	v.Logger.Debugf("%s ↳ invoke %s", v.Logger.Module(), def.String())
+	v.Debugf("%s ↳ invoke %s", v.Module(), def.String())
 	return def
 }
 
 func (v *Instruction) doCall(c *ssa.Call, def *funcs.Definition) {
 	call := funcs.MakeCall(def, c.Common(), c)
 	if call == nil {
-		v.Logger.Infof("%s Skipping nil call %s", v.Logger.Module(), c.Common())
+		v.Infof("%s Skipping nil call %s", v.Module(), c.Common())
 		return
 	}
-	v.Logger.Debugf("%s Definition: %v", v.Logger.Module(), def.String())
-	v.Logger.Debugf("%s      Call: %v", v.Logger.Module(), call.String())
+	v.Debugf("%s Definition: %v", v.Module(), def.String())
+	v.Debugf("%s      Call: %v", v.Module(), call.String())
 	fn := NewFunction(call, v.Context, v.Env)
 	fn.SetLogger(v.Logger)
-	v.Logger.Debugf("%s Context at caller: %s", v.Logger.Module(), v.Context)
-	v.Logger.Debugf("%s Context at callee: %v", v.Logger.Module(), fn.Context)
+	v.Debugf("%s Context at caller: %s", v.Module(), v.Context)
+	v.Debugf("%s Context at callee: %v", v.Module(), fn.Context)
 
 	if len(call.Function().Blocks) == 0 {
 		// Since the function does not have body,
@@ -507,15 +507,15 @@ func (v *Instruction) doCall(c *ssa.Call, def *funcs.Definition) {
 func (v *Instruction) doGo(g *ssa.Go, def *funcs.Definition) {
 	call := funcs.MakeCall(def, g.Common(), nil)
 	if call == nil {
-		v.Logger.Infof("%s Skipping nil go %s", v.Logger.Module(), g.Common())
+		v.Infof("%s Skipping nil go %s", v.Module(), g.Common())
 		return
 	}
-	v.Logger.Debugf("%s Definition: %v", v.Logger.Module(), def.String())
-	v.Logger.Debugf("%s    Go/Call: %v", v.Logger.Module(), call.String())
+	v.Debugf("%s Definition: %v", v.Module(), def.String())
+	v.Debugf("%s    Go/Call: %v", v.Module(), call.String())
 	fn := NewFunction(call, v.Context, v.Env)
 	fn.SetLogger(v.Logger)
-	v.Logger.Debugf("%s Context at caller: %v", v.Logger.Module(), v.Context)
-	v.Logger.Debugf("%s Context at callee: %v", v.Logger.Module(), fn.Context)
+	v.Debugf("%s Context at caller: %v", v.Module(), v.Context)
+	v.Debugf("%s Context at callee: %v", v.Module(), fn.Context)
 
 	fn.EnterFunc(call.Function())
 	stmt := &migo.SpawnStatement{Name: fn.Callee.Name()}
@@ -573,7 +573,7 @@ func (v *Instruction) newChan(ch ssa.Value) *chans.Chan {
 	if updater, ok := v.Context.(callctx.Updater); ok {
 		updater.PutUniq(ch, newch)
 	} else {
-		v.Logger.Fatal("Cannot update context")
+		v.Fatal("Cannot update context")
 	}
 	return newch
 }
@@ -612,9 +612,9 @@ func (v *Instruction) getSelectCases(sel *ssa.Select) migo.Statement {
 							bodyBlk, defaultBlk := v.selBodyBlock(sel, idx, selTest.Block())
 							if bodyBlk != nil {
 								stmt.Cases[idx] = append(stmt.Cases[idx], bodyGuard)
-								v.Logger.Debugf("%s Select index #%d block #%d (%s)", v.Logger.Module(), idx, bodyBlk.Index, bodyBlk.Comment)
+								v.Debugf("%s Select index #%d block #%d (%s)", v.Module(), idx, bodyBlk.Index, bodyBlk.Comment)
 							} else {
-								v.Logger.Debugf("%s Select index #%d no continuation", v.Logger.Module(), idx)
+								v.Debugf("%s Select index #%d no continuation", v.Module(), idx)
 							}
 							if defaultBlk != nil {
 								stmt.Cases[idx+1] = append(stmt.Cases[idx+1], migoCall(v.Callee.Name(), defaultBlk, v.Exported))
@@ -624,8 +624,8 @@ func (v *Instruction) getSelectCases(sel *ssa.Select) migo.Statement {
 							}
 						}
 					default:
-						v.Logger.Fatal("%s Unexpected select-index test expression",
-							v.Logger.Module(), selTest.String())
+						v.Fatal("%s Unexpected select-index test expression",
+							v.Module(), selTest.String())
 					}
 				}
 			}
@@ -640,13 +640,13 @@ func (v *Instruction) selBodyGuard(sel *ssa.Select, caseIdx int) migo.Statement 
 	chPos := v.Env.Info.FSet.Position(chVar.Pos())
 	ch := v.Get(chVar)
 	if _, ok := ch.(store.MockValue); ok {
-		v.Logger.Debugf("%s Unknown channel %s.\n\t%s",
-			v.Logger.Module(), ch, chPos.String())
+		v.Debugf("%s Unknown channel %s.\n\t%s",
+			v.Module(), ch, chPos.String())
 	}
 	param := v.FindExported(v.Context, ch)
 	if _, isHidden := param.(Unexported); isHidden {
-		v.Logger.Debugf("%s Channel %s/%s not exported in current scope.\n\t%s",
-			v.Logger.Module(), sel.States[caseIdx].Chan.Name(), ch.UniqName(), chPos.String())
+		v.Debugf("%s Channel %s/%s not exported in current scope.\n\t%s",
+			v.Module(), sel.States[caseIdx].Chan.Name(), ch.UniqName(), chPos.String())
 	}
 	// Select guard actions then jump to body blocks
 	switch sel.States[caseIdx].Dir {
@@ -655,8 +655,8 @@ func (v *Instruction) selBodyGuard(sel *ssa.Select, caseIdx int) migo.Statement 
 	case types.RecvOnly:
 		return &migo.RecvStatement{Chan: param.Name()}
 	default:
-		v.Logger.Fatalf("%s Select case is guarded by neither send nor receive.\n\t%s",
-			v.Logger.Module(), chPos.String())
+		v.Fatalf("%s Select case is guarded by neither send nor receive.\n\t%s",
+			v.Module(), chPos.String())
 	}
 	return nil
 }
@@ -669,22 +669,22 @@ func (v *Instruction) selBodyBlock(sel *ssa.Select, caseIdx int, testBlk *ssa.Ba
 	switch inst := testBlk.Instrs[len(testBlk.Instrs)-1].(type) {
 	case *ssa.If: // Normal case.
 		if isLastCase := caseIdx == len(sel.States)-1 && !sel.Blocking; isLastCase {
-			v.Logger.Debugf("%s Select default block #%d.\n\t%s",
-				v.Logger.Module(), caseIdx+1, v.Env.getPos(sel))
+			v.Debugf("%s Select default block #%d.\n\t%s",
+				v.Module(), caseIdx+1, v.Env.getPos(sel))
 			return inst.Block().Succs[0], inst.Block().Succs[1]
 		}
 		return inst.Block().Succs[0], nil
 	case *ssa.Jump: // Else branch empty, followed by continuation of select.
-		v.Logger.Debugf("%s Select default block empty (jump).\n\t%s",
-			v.Logger.Module(), v.Env.getPos(sel))
+		v.Debugf("%s Select default block empty (jump).\n\t%s",
+			v.Module(), v.Env.getPos(sel))
 		return inst.Block().Succs[0], nil
 	case *ssa.Return: // Else branch empty and no continuation after select.
-		v.Logger.Debugf("%s Select default block empty (return).\n\t%s",
-			v.Logger.Module(), v.Env.getPos(sel))
+		v.Debugf("%s Select default block empty (return).\n\t%s",
+			v.Module(), v.Env.getPos(sel))
 		return nil, nil
 	default:
-		v.Logger.Fatalf("%s Select case has unrecognised last instruction in block.\n\t%s",
-			v.Logger.Module(), v.Env.getPos(inst))
+		v.Fatalf("%s Select case has unrecognised last instruction in block.\n\t%s",
+			v.Module(), v.Env.getPos(inst))
 	}
 	return nil, nil
 }
@@ -693,8 +693,8 @@ func (v *Instruction) selBodyBlock(sel *ssa.Select, caseIdx int, testBlk *ssa.Ba
 // paramters with the call arguments.
 func (v *Instruction) bindCallParameters(call *funcs.Call, fn *Function) {
 	handleNilChanArg := func(arg, param store.Key) {
-		v.Logger.Infof("%s Handle nilchan parameter: %s=%#v, %s=%v",
-			v.Logger.Module(), arg.Name(), arg, param.Name(), param)
+		v.Infof("%s Handle nilchan parameter: %s=%#v, %s=%v",
+			v.Module(), arg.Name(), arg, param.Name(), param)
 		switch calleeChan := fn.Get(param).(type) {
 		case *chans.Chan:
 			v.MiGo.AddStmts(migoNewChan(arg, calleeChan))
@@ -711,15 +711,15 @@ func (v *Instruction) bindCallParameters(call *funcs.Call, fn *Function) {
 			argStruct := v.Get(arg)
 			paramStruct := fn.Get(param)
 			if mock, ok := argStruct.(store.MockValue); ok {
-				v.Logger.Debugf("%s %s is a nil struct (arg) (type:%s)",
-					v.Logger.Module(), arg.Name(), arg.Type().String())
+				v.Debugf("%s %s is a nil struct (arg) (type:%s)",
+					v.Module(), arg.Name(), arg.Type().String())
 				argStruct = structs.New(mock, arg.(ssa.Value))
 			} else if _, ok := argStruct.(*structs.Struct); !ok {
 				argStruct = structs.New(mock, arg.(ssa.Value))
 			}
 			if mock, ok := paramStruct.(store.MockValue); ok {
-				v.Logger.Debugf("%s %s is a nil struct (param) (type:%s)",
-					v.Logger.Module(), param.Name(), param.Type().String())
+				v.Debugf("%s %s is a nil struct (param) (type:%s)",
+					v.Module(), param.Name(), param.Type().String())
 				paramStruct = structs.New(mock, param.(ssa.Value))
 			} else if _, ok := paramStruct.(*structs.Struct); !ok {
 				paramStruct = structs.New(mock, arg.(ssa.Value))

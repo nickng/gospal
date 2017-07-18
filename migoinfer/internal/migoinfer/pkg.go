@@ -22,8 +22,8 @@ func NewPackage(env *Environment) *Package {
 // InitGlobals initialises package-global varables in environment.
 func (p *Package) InitGlobals(pkg *ssa.Package) {
 	for name, memb := range pkg.Members {
-		p.Logger.Debugf("%s Package member \"%s\".%s\t%T",
-			p.Logger.Module(), pkg.Pkg.Path(), name, memb)
+		p.Debugf("%s Package member \"%s\".%s\t%T",
+			p.Module(), pkg.Pkg.Path(), name, memb)
 		switch value := memb.(type) {
 		case *ssa.Global:
 			p.Env.Globals.PutObj(value, value)
@@ -41,7 +41,7 @@ func (p *Package) VisitInit(pkg *ssa.Package) {
 		fn.EnterFunc(initDef.Function())
 		return
 	}
-	p.Logger.Warnf("%s %s has no init", p.Logger.Module(), pkg.String())
+	p.Warnf("%s %s has no init", p.Module(), pkg.String())
 }
 
 // SetLogger sets logger for Package.

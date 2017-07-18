@@ -60,7 +60,7 @@ func (f *Function) EnterFunc(fn *ssa.Function) {
 	}
 	defer f.ExitFunc(fn)
 	nBlock := len(f.Callee.Function().Blocks)
-	f.Logger.Debugf("%s Enter %s (%d blocks)", f.Logger.Module(), fn.Name(), nBlock)
+	f.Debugf("%s Enter %s (%d blocks)", f.Module(), fn.Name(), nBlock)
 
 	if nBlock > 0 {
 		// This will visit all blocks in the function.
@@ -71,7 +71,7 @@ func (f *Function) EnterFunc(fn *ssa.Function) {
 // ExitFunc finalises analysis of a function.
 func (f *Function) ExitFunc(fn *ssa.Function) {
 	if fn != nil {
-		f.Logger.Debugf("%s Exit %s", f.Logger.Module(), fn.Name())
+		f.Debugf("%s Exit %s", f.Module(), fn.Name())
 	}
 	if b, ok := f.Analyser.(*Block); b != nil && ok {
 		// Since a function is complete analysed, we can print its content.

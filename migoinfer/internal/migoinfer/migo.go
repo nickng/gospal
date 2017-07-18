@@ -111,17 +111,17 @@ func migoRecv(v *Instruction, local ssa.Value, ch store.Value) migo.Statement {
 	if _, ok := ch.(store.MockValue); !ok {
 		switch param := v.FindExported(v.Context, ch).(type) {
 		case Unexported:
-			v.Logger.Warnf("%s Channel %s/%s not exported in current scope\n\t%s",
-				v.Logger.Module(), local.Name(), ch.UniqName(), v.Env.getPos(local))
+			v.Warnf("%s Channel %s/%s not exported in current scope\n\t%s",
+				v.Module(), local.Name(), ch.UniqName(), v.Env.getPos(local))
 			return (&migo.RecvStatement{Chan: param.Name()})
 		default:
-			v.Logger.Debugf("%s Receive %s==%s ↦ %s\t%s",
-				v.Logger.Module(), local.Name(), param.Name(), ch.UniqName(), local.Type())
+			v.Debugf("%s Receive %s==%s ↦ %s\t%s",
+				v.Module(), local.Name(), param.Name(), ch.UniqName(), local.Type())
 			return (&migo.RecvStatement{Chan: param.Name()})
 		}
 	}
-	v.Logger.Warnf("%s Receive unknown-channel %s\n\t%s",
-		v.Logger.Module(), ch.UniqName(), v.Env.getPos(local))
+	v.Warnf("%s Receive unknown-channel %s\n\t%s",
+		v.Module(), ch.UniqName(), v.Env.getPos(local))
 	return (&migo.RecvStatement{Chan: local.Name()})
 }
 
@@ -130,17 +130,17 @@ func migoSend(v *Instruction, local ssa.Value, ch store.Value) migo.Statement {
 	if _, ok := ch.(store.MockValue); !ok {
 		switch param := v.FindExported(v.Context, ch).(type) {
 		case Unexported:
-			v.Logger.Warnf("%s Channel %s/%s not exported in current scope\n\t%s",
-				v.Logger.Module(), local.Name(), ch.UniqName(), v.Env.getPos(local))
+			v.Warnf("%s Channel %s/%s not exported in current scope\n\t%s",
+				v.Module(), local.Name(), ch.UniqName(), v.Env.getPos(local))
 			return &migo.SendStatement{Chan: param.Name()}
 		default:
-			v.Logger.Debugf("%s Send %s==%s ↦ %s\t%s",
-				v.Logger.Module(), local.Name(), param.Name(), ch.UniqName(), local.Type())
+			v.Debugf("%s Send %s==%s ↦ %s\t%s",
+				v.Module(), local.Name(), param.Name(), ch.UniqName(), local.Type())
 			return &migo.SendStatement{Chan: param.Name()}
 		}
 	}
-	v.Logger.Warnf("%s Send unknown-channel %s\n\t%s",
-		v.Logger.Module(), ch.UniqName(), v.Env.getPos(local))
+	v.Warnf("%s Send unknown-channel %s\n\t%s",
+		v.Module(), ch.UniqName(), v.Env.getPos(local))
 	return &migo.SendStatement{Chan: local.Name()}
 }
 
@@ -153,12 +153,12 @@ func paramsToMigoParam(v *Instruction, fn *Function, call *funcs.Call) []*migo.P
 		switch ch := v.Get(callArg).(type) {
 		case store.MockValue:
 			if _, isPhi := callArg.(*ssa.Phi); isPhi {
-				v.Logger.Warnf("%s Undefined argument %s is Phi == %v",
-					v.Logger.Module(), callArg,
+				v.Warnf("%s Undefined argument %s is Phi == %v",
+					v.Module(), callArg,
 					&migo.Parameter{Caller: callArg, Callee: param})
 			} else {
-				v.Logger.Warnf("%s Argument %v undefined → nil chan.\n\t%s",
-					v.Logger.Module(), callArg, v.Env.getPos(callArg))
+				v.Warnf("%s Argument %v undefined → nil chan.\n\t%s",
+					v.Module(), callArg, v.Env.getPos(callArg))
 			}
 		case *chans.Chan:
 			if exported := v.FindExported(v.Context, ch); exported != nil {
@@ -176,15 +176,15 @@ func paramsToMigoParam(v *Instruction, fn *Function, call *funcs.Call) []*migo.P
 			argStruct := v.Get(arg)
 			paramStruct := fn.Get(param)
 			if mock, ok := argStruct.(store.MockValue); ok {
-				v.Logger.Debugf("%s %s is a nil struct (arg) (type:%s)",
-					v.Logger.Module(), arg.Name(), arg.Type().String())
+				v.Debugf("%s %s is a nil struct (arg) (type:%s)",
+					v.Module(), arg.Name(), arg.Type().String())
 				argStruct = structs.New(mock, arg)
 			} else if _, ok := argStruct.(*structs.Struct); !ok {
 				argStruct = structs.New(v.Callee, arg.(ssa.Value))
 			}
 			if mock, ok := paramStruct.(store.MockValue); ok {
-				v.Logger.Debugf("%s %s is a nil struct (param) (type:%s)",
-					v.Logger.Module(), param.Name(), param.Type().String())
+				v.Debugf("%s %s is a nil struct (param) (type:%s)",
+					v.Module(), param.Name(), param.Type().String())
 				paramStruct = structs.New(mock, param.(ssa.Value))
 			} else if _, ok := paramStruct.(*structs.Struct); !ok {
 				paramStruct = structs.New(v.Callee, arg.(ssa.Value))
@@ -203,8 +203,8 @@ func paramsToMigoParam(v *Instruction, fn *Function, call *funcs.Call) []*migo.P
 			}
 		} else if isStruct(arg) && !isStruct(param) && types.IsInterface(param.Type()) {
 			// Skips struct arg/param pair-up.
-			v.Logger.Debugf("%s Function argument is struct (type:%s), parameter is not (type:%s), likely a wildcard interface{}",
-				v.Logger.Module(), arg.Type().String(), param.Type().String())
+			v.Debugf("%s Function argument is struct (type:%s), parameter is not (type:%s), likely a wildcard interface{}",
+				v.Module(), arg.Type().String(), param.Type().String())
 		}
 		if isChan(arg) {
 			migoParams = append(migoParams, convertToMigoParam(arg, call.Definition().Param(i)))

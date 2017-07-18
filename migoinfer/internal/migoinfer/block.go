@@ -64,8 +64,8 @@ func NewBlock(fn *funcs.Instance, ctx callctx.Context, env *Environment) *Block 
 }
 
 func (b *Block) EnterBlk(blk *ssa.BasicBlock) {
-	b.Logger.Debugf("%s Enter %s#%d",
-		b.Logger.Module(), b.Callee.UniqName(), blk.Index)
+	b.Debugf("%s Enter %s#%d",
+		b.Module(), b.Callee.UniqName(), blk.Index)
 	for _, name := range b.Exported.names {
 		b.meta[blk.Index].migoFunc.AddParams(&migo.Parameter{Callee: name, Caller: name})
 	}
@@ -77,8 +77,8 @@ func (b *Block) EnterBlk(blk *ssa.BasicBlock) {
 
 func (b *Block) JumpBlk(curr *ssa.BasicBlock, next *ssa.BasicBlock) {
 	b.Loop.Detect(curr, next)
-	b.Logger.Debugf("%s Jump %s#%d → %d",
-		b.Logger.Module(), b.Callee.UniqName(), curr.Index, next.Index)
+	b.Debugf("%s Jump %s#%d → %d",
+		b.Module(), b.Callee.UniqName(), curr.Index, next.Index)
 	for _, name := range b.Exported.names {
 		b.meta[next.Index].migoFunc.AddParams(&migo.Parameter{Callee: name, Caller: name})
 	}
@@ -93,8 +93,8 @@ func (b *Block) JumpBlk(curr *ssa.BasicBlock, next *ssa.BasicBlock) {
 }
 
 func (b *Block) ExitBlk(blk *ssa.BasicBlock) {
-	b.Logger.Debugf("%s Exit %s#%d",
-		b.Logger.Module(), b.Callee.UniqName(), blk.Index)
+	b.Debugf("%s Exit %s#%d",
+		b.Module(), b.Callee.UniqName(), blk.Index)
 }
 
 func (b *Block) CurrBlk() *ssa.BasicBlock {
@@ -103,7 +103,7 @@ func (b *Block) CurrBlk() *ssa.BasicBlock {
 
 func (b *Block) PrevBlk() *ssa.BasicBlock {
 	if b.Size() < 1 {
-		b.Logger.Warnf("%s Cannot find PrevBlk: %#v", b.Logger.Module(), b.LastNode())
+		b.Warnf("%s Cannot find PrevBlk: %#v", b.Module(), b.LastNode())
 		return nil
 	}
 	return b.LastNode().Prev.Blk()
@@ -183,15 +183,15 @@ func (b *Block) visitInstrs(blk *ssa.BasicBlock) {
 
 		case *ssa.Call:
 			if b.NodeVisited(blkMeta.visitNode) {
-				b.Logger.Debugf("%s ---- CALL ---- #%d\n\t%s",
-					b.Logger.Module(), blkMeta.visitNode.Index(), b.Env.getPos(instr))
+				b.Debugf("%s ---- CALL ---- #%d\n\t%s",
+					b.Module(), blkMeta.visitNode.Index(), b.Env.getPos(instr))
 				blkBody.VisitCall(instr)
 			}
 
 		case *ssa.Go:
 			if b.NodeVisited(blkMeta.visitNode) {
-				b.Logger.Debugf("%s ---- SPAWN ---- #%d\n\t%s",
-					b.Logger.Module(), blkMeta.visitNode.Index(), b.Env.getPos(instr))
+				b.Debugf("%s ---- SPAWN ---- #%d\n\t%s",
+					b.Module(), blkMeta.visitNode.Index(), b.Env.getPos(instr))
 				blkBody.VisitGo(instr)
 			}
 
@@ -237,7 +237,7 @@ func isSelCondBlk(cond ssa.Value) bool {
 func (b *Block) mergePhi(data *BlockData, instr *ssa.Phi) {
 	migoFn := data.migoFunc
 	removed := 0
-	b.Logger.Debugf("%s Remove φ argument %s", b.Logger.Module(), instr.Name())
+	b.Debugf("%s Remove φ argument %s", b.Module(), instr.Name())
 	for i := 0; i < len(migoFn.Params); i++ {
 		if migoFn.Params[i-removed].Caller.Name() == instr.Name() || migoFn.Params[i-removed].Callee.Name() == instr.Name() {
 			migoFn.Params = append(migoFn.Params[:i-removed], migoFn.Params[i-removed+1:]...)
@@ -252,8 +252,8 @@ func (b *Block) mergePhi(data *BlockData, instr *ssa.Phi) {
 	}
 	// If edge is in SSA do replace edges and parameters.
 	if edge != nil {
-		b.Logger.Debugf("%s Replace φ edges %s with %s in parameter",
-			b.Logger.Module(), edge.Name(), instr.Name())
+		b.Debugf("%s Replace φ edges %s with %s in parameter",
+			b.Module(), edge.Name(), instr.Name())
 		for i := range migoFn.Params {
 			if edge.Name() == migoFn.Params[i].Caller.Name() {
 				// Update def parameters.
