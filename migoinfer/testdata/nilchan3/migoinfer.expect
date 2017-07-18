@@ -1,0 +1,5 @@
+def main.main():
+    let nil0 = newchan nilchan, 0;
+    recv nil0;
+    let nil1 = newchan nilchan, 0;
+    send nil1;

@@ -1,0 +1,7 @@
+def main.main():
+    let t0_0 = newchan nilchan, 0;
+    let t4 = newchan nilchan, 0;
+    recv t4;
+    let t6_0 = newchan nilchan, 0;
+    let t9 = newchan main.main0.t9_chan0, 0;
+    recv t9;

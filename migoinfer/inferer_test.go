@@ -52,6 +52,9 @@ func TestPrimitives(t *testing.T) {
 		{"Channel chain by overwriting chan vars", "overwrite-chan"},
 		{"While-true loop", "whiletrue"},
 		{"for-select loop", "for-select"},
+		{"nil channel", "nilchan"},
+		{"Select on nil channel", "nilchan2"},
+		{"Explicitly declared nil channel", "nilchan3"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

@@ -1,0 +1,12 @@
+def main.main():
+    let t0_0 = newchan nilchan, 0;
+    call main.f(t0_0);
+    let t4 = newchan main.main0.t4_chan0, 0;
+    call main.f(t4);
+def main.f(c_0):
+    select
+      case recv c_0; call main.f#2(c_0);
+      case tau;
+    endselect;
+def main.f#2(c_0):
+    tau;

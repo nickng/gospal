@@ -695,14 +695,15 @@ func (v *Instruction) selBodyBlock(sel *ssa.Select, caseIdx int, testBlk *ssa.Ba
 // paramters with the call arguments.
 func (v *Instruction) bindCallParameters(call *funcs.Call, fn *Function) {
 	handleNilChanArg := func(arg, param store.Key) {
-		v.Infof("%s Handle nilchan parameter: %s=%#v, %s=%v",
+		v.Debugf("%s Handle nilchan parameter: %s=%#v, %s=%v",
 			v.Module(), arg.Name(), arg, param.Name(), param)
 		switch calleeChan := fn.Get(param).(type) {
 		case *chans.Chan:
 			v.MiGo.AddStmts(migoNewChan(arg, calleeChan))
 			v.Export(arg)
 		case store.MockValue:
-			// Unchanged.
+			// nilchan parameter is handled by creating a nilchan using arg.
+			v.MiGo.AddStmts(migoNilChan(arg))
 		}
 	}
 

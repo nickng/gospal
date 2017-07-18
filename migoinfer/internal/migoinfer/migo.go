@@ -3,6 +3,7 @@ package migoinfer
 import (
 	"bytes"
 	"fmt"
+	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/ssa"
@@ -106,27 +107,61 @@ func migoNewChan(name migo.NamedVar, ch *chans.Chan) migo.Statement {
 	return &migo.NewChanStatement{Name: name, Chan: ch.UniqName(), Size: ch.Size()}
 }
 
+type nilChan struct {
+	count int
+	typ   types.Type
+}
+
+func newNilChan(t types.Type) nilChan {
+	defer func() { nextNilChan++ }()
+	return nilChan{count: nextNilChan, typ: t}
+}
+
+var nextNilChan int
+
+func (n nilChan) Name() string     { return fmt.Sprintf("nil%d", n.count) }
+func (n nilChan) Pos() token.Pos   { return token.NoPos }
+func (n nilChan) Type() types.Type { return n.typ }
+func (n nilChan) String() string {
+	return fmt.Sprintf("[nilchan%d:%s]", n.count, n.Type().String())
+}
+
 // migoRecv returns a Receive Statement in MiGo.
 func migoRecv(v *Instruction, local ssa.Value, ch store.Value) migo.Statement {
+	if c, ok := local.(*ssa.Const); ok {
+		if c.IsNil() {
+			nc := newNilChan(local.Type())
+			v.MiGo.AddStmts(migoNilChan(nc))
+			return &migo.RecvStatement{Chan: nc.Name()}
+		}
+	}
 	if _, ok := ch.(store.MockValue); !ok {
 		switch param := v.FindExported(v.Context, ch).(type) {
 		case Unexported:
 			v.Warnf("%s Channel %s/%s not exported in current scope\n\t%s",
 				v.Module(), local.Name(), ch.UniqName(), v.Env.getPos(local))
-			return (&migo.RecvStatement{Chan: param.Name()})
+			return &migo.RecvStatement{Chan: param.Name()}
 		default:
 			v.Debugf("%s Receive %s==%s ↦ %s\t%s",
 				v.Module(), local.Name(), param.Name(), ch.UniqName(), local.Type())
-			return (&migo.RecvStatement{Chan: param.Name()})
+			return &migo.RecvStatement{Chan: param.Name()}
 		}
 	}
 	v.Warnf("%s Receive unknown-channel %s\n\t%s",
 		v.Module(), ch.UniqName(), v.Env.getPos(local))
-	return (&migo.RecvStatement{Chan: local.Name()})
+	v.MiGo.AddStmts(migoNilChan(local))
+	return &migo.RecvStatement{Chan: local.Name()}
 }
 
 // migoSend returns a Send Statement in MiGo.
 func migoSend(v *Instruction, local ssa.Value, ch store.Value) migo.Statement {
+	if c, ok := local.(*ssa.Const); ok {
+		if c.IsNil() {
+			nc := newNilChan(local.Type())
+			v.MiGo.AddStmts(migoNilChan(nc))
+			return &migo.SendStatement{Chan: nc.Name()}
+		}
+	}
 	if _, ok := ch.(store.MockValue); !ok {
 		switch param := v.FindExported(v.Context, ch).(type) {
 		case Unexported:
@@ -141,6 +176,7 @@ func migoSend(v *Instruction, local ssa.Value, ch store.Value) migo.Statement {
 	}
 	v.Warnf("%s Send unknown-channel %s\n\t%s",
 		v.Module(), ch.UniqName(), v.Env.getPos(local))
+	v.MiGo.AddStmts(migoNilChan(local))
 	return &migo.SendStatement{Chan: local.Name()}
 }
 
@@ -222,4 +258,8 @@ func underlying(v store.Key) store.Key {
 		return underlying(v.X)
 	}
 	return v
+}
+
+func migoNilChan(k store.Key) migo.Statement {
+	return &migo.NewChanStatement{Name: k, Chan: "nilchan", Size: 0}
 }

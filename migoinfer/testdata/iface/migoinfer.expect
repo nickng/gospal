@@ -7,7 +7,7 @@ def main.main():
     spawn main.Recv(t2);
     call main.Send(t2);
     call main.Recv(t2);
-def main.Send(t1):
-    send t1;
-def main.Recv(t1):
-    recv t1;
+def main.Send(sr_0):
+    send sr_0;
+def main.Recv(sr_0):
+    recv sr_0;
