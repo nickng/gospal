@@ -458,8 +458,8 @@ func (v *Instruction) doCall(c *ssa.Call, def *funcs.Definition) {
 	v.Debugf("%s      Call: %v", v.Module(), call.String())
 	fn := NewFunction(call, v.Context, v.Env)
 	fn.SetLogger(v.Logger)
-	v.Debugf("%s Context at caller: %s", v.Module(), v.Context)
-	v.Debugf("%s Context at callee: %v", v.Module(), fn.Context)
+	v.Debugf("%s Context at caller: %v%v", v.Module(), v.Context, v.Exported)
+	v.Debugf("%s Context at callee: %v%v", v.Module(), fn.Context, fn.Exported)
 	fn.exportParams()
 
 	if len(call.Function().Blocks) == 0 {
@@ -515,8 +515,8 @@ func (v *Instruction) doGo(g *ssa.Go, def *funcs.Definition) {
 	v.Debugf("%s    Go/Call: %v", v.Module(), call.String())
 	fn := NewFunction(call, v.Context, v.Env)
 	fn.SetLogger(v.Logger)
-	v.Debugf("%s Context at caller: %v", v.Module(), v.Context)
-	v.Debugf("%s Context at callee: %v", v.Module(), fn.Context)
+	v.Debugf("%s Context at caller: %v%v", v.Module(), v.Context, v.Exported)
+	v.Debugf("%s Context at callee: %v%v", v.Module(), fn.Context, fn.Exported)
 	fn.exportParams()
 
 	fn.EnterFunc(call.Function())
