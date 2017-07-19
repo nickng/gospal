@@ -460,6 +460,7 @@ func (v *Instruction) doCall(c *ssa.Call, def *funcs.Definition) {
 	fn.SetLogger(v.Logger)
 	v.Debugf("%s Context at caller: %s", v.Module(), v.Context)
 	v.Debugf("%s Context at callee: %v", v.Module(), fn.Context)
+	fn.exportParams()
 
 	if len(call.Function().Blocks) == 0 {
 		// Since the function does not have body,
@@ -516,6 +517,7 @@ func (v *Instruction) doGo(g *ssa.Go, def *funcs.Definition) {
 	fn.SetLogger(v.Logger)
 	v.Debugf("%s Context at caller: %v", v.Module(), v.Context)
 	v.Debugf("%s Context at callee: %v", v.Module(), fn.Context)
+	fn.exportParams()
 
 	fn.EnterFunc(call.Function())
 	stmt := &migo.SpawnStatement{Name: fn.Callee.Name()}

@@ -114,7 +114,21 @@ func Switch(parent Context, call *funcs.Instance) Context {
 		argValue := parent.Get(arg)
 		param := call.Definition().Parameters[i]
 		if argStruct, ok := argValue.(*structs.Struct); ok {
-			paramStruct := structs.New(call, argStruct.Value)
+			var paramTyper structs.Typer
+			switch t := param.Type().Underlying().(type) {
+			case *types.Struct:
+				paramTyper = param
+			case *types.Pointer:
+				switch t.Elem().Underlying().(type) {
+				case *types.Struct:
+					paramTyper = param
+				default:
+					paramTyper = argStruct.Value
+				}
+			default:
+				paramTyper = argStruct.Value
+			}
+			paramStruct := structs.New(call, paramTyper)
 			c.Put(param, paramStruct)
 
 			argFields := argStruct.Expand()

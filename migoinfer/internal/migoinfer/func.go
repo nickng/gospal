@@ -5,6 +5,7 @@ import (
 	"github.com/nickng/gospal/block"
 	"github.com/nickng/gospal/callctx"
 	"github.com/nickng/gospal/funcs"
+	"github.com/nickng/gospal/store/structs"
 	"github.com/pkg/errors"
 	"golang.org/x/tools/go/ssa"
 )
@@ -25,9 +26,9 @@ type Function struct {
 // NewFunction creates a new function visitor.
 //
 // NewFunction takes two parameters to setup the call environment.
-//   - Program environment: env
+//   - Function definition: call
 //   - Caller context: ctx
-//   - Function definition: def
+//   - Program environment: env
 // They contain the global, and caller local variables respectively.
 // In particular, the caller context contains the caller *ssa.Function and
 // its corresponding call function.
@@ -38,11 +39,6 @@ func NewFunction(call *funcs.Call, ctx callctx.Context, env *Environment) *Funct
 		Context:  callctx.Switch(ctx, callee),
 		Env:      env,
 		Exported: new(Exported),
-	}
-	for _, param := range f.Callee.Definition().Parameters {
-		if isChan(param) {
-			f.Export(param)
-		}
 	}
 	b := NewBlock(f.Callee, f.Context, f.Env)
 	if b != nil {
@@ -90,6 +86,22 @@ func (f *Function) SetLogger(l *Logger) {
 	if b, ok := f.Analyser.(*Block); b != nil && ok {
 		if ls, ok := f.Analyser.(LogSetter); f.Analyser != nil && ok {
 			ls.SetLogger(f.Logger)
+		}
+	}
+}
+
+func (f *Function) exportParams() {
+	for _, param := range f.Callee.Definition().Parameters[:f.Callee.Definition().NParam+f.Callee.Definition().NFreeVar] {
+		if isChan(param) {
+			f.Export(param)
+		} else if isStruct(param) {
+			if paramStruct, ok := f.Get(param).(*structs.Struct); ok {
+				for _, paramField := range paramStruct.Expand() {
+					if isChan(paramField) {
+						f.Export(paramField)
+					}
+				}
+			}
 		}
 	}
 }
