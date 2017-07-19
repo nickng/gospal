@@ -123,16 +123,11 @@ func Switch(parent Context, call *funcs.Instance) Context {
 			for i, argField := range argFields {
 				switch sf := argField.(type) {
 				case structs.SField:
+					paramField := paramFields[i].(structs.SField)
+					paramField.Struct.Fields[paramField.Index] = paramField
 					if sf.Key != nil {
 						argFieldVal := parent.Get(sf.Key)
-						paramField := paramFields[i].(structs.SField)
-						field := structs.FieldParam{store.MockKey{
-							Typ:         sf.Type(),
-							SrcPos:      sf.Pos(),
-							Description: "field-argument",
-						}}
-						paramField.Struct.Fields[paramField.Index] = field
-						c.Put(field, argFieldVal)
+						c.Put(paramField, argFieldVal)
 					}
 				case *structs.Struct:
 					// Skip. The fields would be handled above after Expand()

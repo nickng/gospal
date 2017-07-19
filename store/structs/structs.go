@@ -213,11 +213,3 @@ func (s *Struct) Expand() []store.Key {
 	}
 	return fields
 }
-
-// FieldParam is a wrapper/annotater for a field of a struct in a parameter
-// which may be unnamed.
-// When the FieldParam is used, it should be unwrapped and the underlying
-// store.Key be used instead.
-type FieldParam struct {
-	store.Key
-}

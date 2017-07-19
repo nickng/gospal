@@ -226,16 +226,16 @@ func (v *Instruction) VisitFieldAddr(instr *ssa.FieldAddr) {
 	case *structs.Struct:
 		if field := struc.Fields[instr.Field]; field != nil {
 			if fieldVal := v.Get(field); fieldVal != nil {
-				v.Debugf("%s Field %s exists, replacing with %s",
-					v.Module(), field, instr.Name())
+				v.Debugf("%s Field %s exists, connect %s ↔ %s", v.Module(), field.Name(), instr.Name(), field.Name())
+				// This is a hack to fix parameter export.
+				// Get(store.Key)/Unexport uses Name() to lookup (since name is unique).
+				// Export/FindExported uses the actual pointer to lookup (so that the actual reference to ssa.MakeChan is kept)
+				// By overwriting field with fieldVal which Get retrieves
+				// The old dangling Exported field will point to a real fieldVal
+				v.Put(field, fieldVal)
+				v.Unexport(field)
+				v.Export(field)
 				v.Put(instr, fieldVal)
-				// If field is a FieldParam, replace field key and export.
-				if _, ok := field.(structs.FieldParam); ok {
-					struc.Fields[instr.Field] = instr
-					if isChan(instr) {
-						v.Export(instr)
-					}
-				}
 			}
 		} else {
 			// Put object in storage.
