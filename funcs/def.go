@@ -3,6 +3,7 @@ package funcs
 import (
 	"bytes"
 	"fmt"
+	"go/token"
 	"go/types"
 	"log"
 
@@ -221,7 +222,7 @@ func getReturns(fn *ssa.Function) returnCounts {
 						if returns[i] == nil {
 							returns[i] = make(returnCount)
 						}
-						returns[i][result]++
+						returns[i][get(result)]++
 					}
 				}
 			}
@@ -256,4 +257,16 @@ func getCommonRetval(rc returnCount) store.Key {
 		}
 	}
 	return retval
+}
+
+func get(v ssa.Value) ssa.Value {
+	switch v := v.(type) {
+	case *ssa.ChangeType:
+		return get(v.X)
+	case *ssa.UnOp:
+		if v.Op == token.MUL {
+			return get(v.X)
+		}
+	}
+	return v
 }
