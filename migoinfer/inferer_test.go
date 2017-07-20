@@ -55,6 +55,7 @@ func TestPrimitives(t *testing.T) {
 		{"nil channel", "nilchan"},
 		{"Select on nil channel", "nilchan2"},
 		{"Explicitly declared nil channel", "nilchan3"},
+		{"nil channel reuse with 2 channel", "nilchan4"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

@@ -1,0 +1,9 @@
+def main.main():
+    let t0_0 = newchan nilchan, 0;
+    spawn main.send(t0_0);
+    let t0_0 = newchan nilchan, 0;
+    spawn main.recv(t0_0);
+def main.send(x_0):
+    send x_0;
+def main.recv(y_0):
+    recv y_0;

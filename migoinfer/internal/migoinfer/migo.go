@@ -149,6 +149,9 @@ func migoRecv(v *Instruction, local store.Key, ch store.Value) migo.Statement {
 	}
 	v.Warnf("%s Receive unknown-channel %s\n\t%s\n",
 		v.Module(), ch.UniqName(), v.Env.getPos(local))
+	if u, ok := local.(*ssa.UnOp); ok && u.Op == token.MUL {
+		local = v.FindExported(v.Context, v.Get(u.X))
+	}
 	if _, ok := local.(structs.SField); !ok { // If not defined as a struct-field.
 		v.MiGo.AddStmts(migoNilChan(local))
 	}
@@ -178,6 +181,9 @@ func migoSend(v *Instruction, local store.Key, ch store.Value) migo.Statement {
 	}
 	v.Warnf("%s Send unknown-channel %s\n\t%s",
 		v.Module(), ch.UniqName(), v.Env.getPos(local))
+	if u, ok := local.(*ssa.UnOp); ok && u.Op == token.MUL {
+		local = v.FindExported(v.Context, v.Get(u.X))
+	}
 	if _, ok := local.(structs.SField); !ok { // If not defined as a struct-field.
 		v.MiGo.AddStmts(migoNilChan(local))
 	}
