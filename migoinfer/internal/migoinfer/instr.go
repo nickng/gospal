@@ -638,27 +638,16 @@ func (v *Instruction) getSelectCases(sel *ssa.Select) migo.Statement {
 
 // selBodyGuard returns the guard action of a select case (except for default).
 func (v *Instruction) selBodyGuard(sel *ssa.Select, caseIdx int) migo.Statement {
-	chVar := sel.States[caseIdx].Chan
-	chPos := v.Env.Info.FSet.Position(chVar.Pos())
-	ch := v.Get(chVar)
-	if _, ok := ch.(store.MockValue); ok {
-		v.Debugf("%s Unknown channel %s.\n\t%s",
-			v.Module(), ch, chPos.String())
-	}
-	param := v.FindExported(v.Context, ch)
-	if _, isHidden := param.(Unexported); isHidden {
-		v.Debugf("%s Channel %s/%s not exported in current scope.\n\t%s",
-			v.Module(), sel.States[caseIdx].Chan.Name(), ch.UniqName(), chPos.String())
-	}
 	// Select guard actions then jump to body blocks
+	ch := v.FindExported(v.Context, v.Get(sel.States[caseIdx].Chan))
 	switch sel.States[caseIdx].Dir {
 	case types.SendOnly:
-		return &migo.SendStatement{Chan: param.Name()}
+		return migoSend(v, ch, v.Get(sel.States[caseIdx].Chan))
 	case types.RecvOnly:
-		return &migo.RecvStatement{Chan: param.Name()}
+		return migoRecv(v, ch, v.Get(sel.States[caseIdx].Chan))
 	default:
 		v.Fatalf("%s Select case is guarded by neither send nor receive.\n\t%s",
-			v.Module(), chPos.String())
+			v.Module(), v.Env.getPos(sel))
 	}
 	return nil
 }

@@ -127,7 +127,7 @@ func (n nilChan) String() string {
 }
 
 // migoRecv returns a Receive Statement in MiGo.
-func migoRecv(v *Instruction, local ssa.Value, ch store.Value) migo.Statement {
+func migoRecv(v *Instruction, local store.Key, ch store.Value) migo.Statement {
 	if c, ok := local.(*ssa.Const); ok {
 		if c.IsNil() {
 			nc := newNilChan(local.Type())
@@ -147,14 +147,16 @@ func migoRecv(v *Instruction, local ssa.Value, ch store.Value) migo.Statement {
 			return &migo.RecvStatement{Chan: param.Name()}
 		}
 	}
-	v.Warnf("%s Receive unknown-channel %s\n\t%s",
+	v.Warnf("%s Receive unknown-channel %s\n\t%s\n",
 		v.Module(), ch.UniqName(), v.Env.getPos(local))
-	v.MiGo.AddStmts(migoNilChan(local))
+	if _, ok := local.(structs.SField); !ok { // If not defined as a struct-field.
+		v.MiGo.AddStmts(migoNilChan(local))
+	}
 	return &migo.RecvStatement{Chan: local.Name()}
 }
 
 // migoSend returns a Send Statement in MiGo.
-func migoSend(v *Instruction, local ssa.Value, ch store.Value) migo.Statement {
+func migoSend(v *Instruction, local store.Key, ch store.Value) migo.Statement {
 	if c, ok := local.(*ssa.Const); ok {
 		if c.IsNil() {
 			nc := newNilChan(local.Type())
@@ -176,7 +178,9 @@ func migoSend(v *Instruction, local ssa.Value, ch store.Value) migo.Statement {
 	}
 	v.Warnf("%s Send unknown-channel %s\n\t%s",
 		v.Module(), ch.UniqName(), v.Env.getPos(local))
-	v.MiGo.AddStmts(migoNilChan(local))
+	if _, ok := local.(structs.SField); !ok { // If not defined as a struct-field.
+		v.MiGo.AddStmts(migoNilChan(local))
+	}
 	return &migo.SendStatement{Chan: local.Name()}
 }
 
