@@ -209,7 +209,7 @@ func paramsToMigoParam(v *Instruction, fn *Function, call *funcs.Call) []*migo.P
 	}
 
 	var migoParams []*migo.Parameter
-	for i, arg := range call.Parameters {
+	for i, arg := range call.Parameters[:call.NParam()+call.NBind()] {
 		arg := underlying(arg)
 		param := underlying(call.Definition().Param(i))
 		if isStruct(arg) && isStruct(param) {
@@ -248,6 +248,21 @@ func paramsToMigoParam(v *Instruction, fn *Function, call *funcs.Call) []*migo.P
 		}
 		if isChan(arg) {
 			migoParams = append(migoParams, convertToMigoParam(arg, call.Definition().Param(i)))
+		}
+	}
+	// Convert return value.
+	for i, param := range call.Parameters[call.NParam()+call.NBind():] {
+		if isChan(param) {
+			migoParam := &migo.Parameter{Caller: param, Callee: call.Definition().Return(i)}
+			if exported := fn.FindExported(fn.Context, fn.Get(call.Definition().Return(i))); exported != nil {
+				migoParam.Callee = exported
+				for j := range migoParams {
+					if migoParams[j].Callee.Name() == exported.Name() {
+						migoParam.Caller = migoParams[j].Caller
+					}
+				}
+			}
+			migoParams = append(migoParams, migoParam)
 		}
 	}
 	return migoParams
