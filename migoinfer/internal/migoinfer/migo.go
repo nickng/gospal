@@ -103,35 +103,46 @@ func migoCall(fn string, blk *ssa.BasicBlock, exported *Exported) migo.Statement
 }
 
 // migoNewChan returns a 'newchan' in MiGo.
-func migoNewChan(name migo.NamedVar, ch *chans.Chan) migo.Statement {
+func migoNewChan(v *Logger, name migo.NamedVar, ch *chans.Chan) migo.Statement {
+	v.Debugf("%s migo newchan name=%v value=%v", v.Module(), name, ch)
 	return &migo.NewChanStatement{Name: name, Chan: ch.UniqName(), Size: ch.Size()}
 }
 
-type nilChan struct {
-	count int
-	typ   types.Type
+// migoNilChan returns a nil 'newchan' in MiGo.
+// The nilchan uses the given key k to generate a let statement.
+func migoNilChan(v *Instruction, k store.Key) migo.Statement {
+	v.Debugf("%s migo nilchan name=%v", v.Module(), k.Name())
+	return &migo.NewChanStatement{Name: k, Chan: "nilchan", Size: 0}
 }
 
-func newNilChan(t types.Type) nilChan {
+// freshNilchan is a datastructure to represent 'fresh' unnamed nil channel.
+type freshNilChan struct {
+	count int        // Fresh nilchan index.
+	typ   types.Type // Type of given nil chan.
+}
+
+func newFreshNilChan(t types.Type) freshNilChan {
 	defer func() { nextNilChan++ }()
-	return nilChan{count: nextNilChan, typ: t}
+	return freshNilChan{count: nextNilChan, typ: t}
 }
 
+// nextNilChan keeps track of current count of unnamed fresh nilchan.
 var nextNilChan int
 
-func (n nilChan) Name() string     { return fmt.Sprintf("nil%d", n.count) }
-func (n nilChan) Pos() token.Pos   { return token.NoPos }
-func (n nilChan) Type() types.Type { return n.typ }
-func (n nilChan) String() string {
+func (n freshNilChan) Name() string     { return fmt.Sprintf("nil%d", n.count) }
+func (n freshNilChan) Pos() token.Pos   { return token.NoPos }
+func (n freshNilChan) Type() types.Type { return n.typ }
+func (n freshNilChan) String() string {
 	return fmt.Sprintf("[nilchan%d:%s]", n.count, n.Type().String())
 }
 
 // migoRecv returns a Receive Statement in MiGo.
 func migoRecv(v *Instruction, local store.Key, ch store.Value) migo.Statement {
+	v.Debugf("%s migo recv name=%v, value=%s", v.Module(), local, ch.UniqName())
 	if c, ok := local.(*ssa.Const); ok {
 		if c.IsNil() {
-			nc := newNilChan(local.Type())
-			v.MiGo.AddStmts(migoNilChan(nc))
+			nc := newFreshNilChan(local.Type())
+			v.MiGo.AddStmts(migoNilChan(v, nc))
 			return &migo.RecvStatement{Chan: nc.Name()}
 		}
 	}
@@ -160,10 +171,11 @@ func migoRecv(v *Instruction, local store.Key, ch store.Value) migo.Statement {
 
 // migoSend returns a Send Statement in MiGo.
 func migoSend(v *Instruction, local store.Key, ch store.Value) migo.Statement {
+	v.Debugf("%s migo send name=%v, value=%s", v.Module(), local, ch.UniqName())
 	if c, ok := local.(*ssa.Const); ok {
 		if c.IsNil() {
-			nc := newNilChan(local.Type())
-			v.MiGo.AddStmts(migoNilChan(nc))
+			nc := newFreshNilChan(local.Type())
+			v.MiGo.AddStmts(migoNilChan(v, nc))
 			return &migo.SendStatement{Chan: nc.Name()}
 		}
 	}
@@ -333,8 +345,4 @@ func underlying(v store.Key) store.Key {
 		return underlying(v.X)
 	}
 	return v
-}
-
-func migoNilChan(k store.Key) migo.Statement {
-	return &migo.NewChanStatement{Name: k, Chan: "nilchan", Size: 0}
 }

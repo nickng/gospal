@@ -314,7 +314,7 @@ func (v *Instruction) VisitMakeChan(instr *ssa.MakeChan) {
 	}
 	v.Put(instr, newch)
 	v.Export(instr)
-	v.MiGo.AddStmts(migoNewChan(instr, newch))
+	v.MiGo.AddStmts(migoNewChan(v.Logger, instr, newch))
 }
 
 func (v *Instruction) VisitMakeClosure(instr *ssa.MakeClosure) {
@@ -484,7 +484,7 @@ func (v *Instruction) doCall(c *ssa.Call, def *funcs.Definition) {
 			if isChan(callerName) { // Caller is a channel.
 				if _, ok := callerName.(store.Unused); !ok {
 					if calleeCh, ok := callee.(*chans.Chan); ok {
-						v.MiGo.AddStmts(migoNewChan(callerName, calleeCh))
+						v.MiGo.AddStmts(migoNewChan(v.Logger, callerName, calleeCh))
 						v.Export(callerName) // Export caller name
 					} else {
 						// Callee does not initialise channel.
@@ -684,11 +684,12 @@ func (v *Instruction) selBodyBlock(sel *ssa.Select, caseIdx int, testBlk *ssa.Ba
 // paramters with the call arguments.
 func (v *Instruction) bindCallParameters(call *funcs.Call, fn *Function) {
 	handleNilChanArg := func(arg, param store.Key) {
-		v.Debugf("%s Handle nilchan parameter: %s=%#v, %s=%v",
-			v.Module(), arg.Name(), arg, param.Name(), param)
+		v.Debugf("%s Handle nilchan for %s(⋯)\n\t%s\n\t\tat caller %s=%#v\n\t\tat callee %s=%#v",
+			v.Module(), call.Function().String(), v.Env.getPos(call.Function()),
+			arg.Name(), arg, param.Name(), param)
 		switch calleeChan := fn.Get(param).(type) {
 		case *chans.Chan:
-			v.MiGo.AddStmts(migoNewChan(arg, calleeChan))
+			v.MiGo.AddStmts(migoNewChan(v.Logger, arg, calleeChan))
 			v.Export(arg)
 		case store.MockValue:
 			// nilchan argument handling is delayed at migo generation time.
