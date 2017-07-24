@@ -180,8 +180,13 @@ func (s *Struct) UniqName() string {
 func (s *Struct) Expand() []store.Key {
 	fields := []store.Key{s}
 	for i, field := range s.Fields {
-		// Use SField to keep the struct hierarchy information.
-		fields = append(fields, SField{Key: field, Struct: s, Index: i})
+		if sfield, ok := field.(SField); ok {
+			// If field is already wrapped in SField, use it.
+			fields = append(fields, sfield)
+		} else {
+			// Use SField to keep the struct hierarchy information.
+			fields = append(fields, SField{Key: field, Struct: s, Index: i})
+		}
 
 		// Use types to expand.
 		switch structType := s.Value.Type().Underlying().(type) {
