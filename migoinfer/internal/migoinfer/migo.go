@@ -190,28 +190,78 @@ func migoSend(v *Instruction, local store.Key, ch store.Value) migo.Statement {
 	return &migo.SendStatement{Chan: local.Name()}
 }
 
+// isDefinedMiGoName checks that given name is defined.
+//
+// The primary use of this function is for detecting nilchan within MiGo def.
+// Defined here means either name is in def parameter (always use the parameter)
+// or name is defined by MiGo let/newchan but not used.
+func isDefinedMiGoName(v *Instruction, name store.Key) bool {
+	for _, param := range v.MiGo.Params {
+		if param.Callee.Name() == name.Name() {
+			v.Debugf("%s %s was a MiGo parameter in def %s",
+				v.Module(), name.Name(), v.MiGo.SimpleName())
+			return true
+		}
+	}
+	defined := false
+	for _, stmt := range v.MiGo.Stmts {
+		switch stmt := stmt.(type) {
+		case *migo.NewChanStatement:
+			if stmt.Name.Name() == name.Name() {
+				v.Debugf("%s %s was a MiGo name defined in def %s",
+					v.Module(), name.Name(), v.MiGo.SimpleName())
+				defined = true
+			}
+		case *migo.SpawnStatement:
+			// If channel is used, reset to undefined (needs redefining).
+			for _, param := range stmt.Params {
+				if param.Caller.Name() == name.Name() {
+					defined = false
+				}
+			}
+		case *migo.CallStatement:
+			// If channel is used, reset to undefined (needs redefining).
+			for _, param := range stmt.Params {
+				if param.Caller.Name() == name.Name() {
+					defined = false
+				}
+			}
+		}
+	}
+	return defined
+}
+
 // paramsToMigoParam converts call parameters into MiGo parameters if they are
 // channel types.
 func paramsToMigoParam(v *Instruction, fn *Function, call *funcs.Call) []*migo.Parameter {
 	// Converts an argument and a function parameter pair to migo Parameter.
 	convertToMigoParam := func(arg, param store.Key) *migo.Parameter {
-		callArg := arg
-		switch ch := v.Get(callArg).(type) {
+		switch ch := v.Get(arg).(type) {
 		case store.MockValue:
-			if _, isPhi := callArg.(*ssa.Phi); isPhi {
-				v.Warnf("%s Undefined argument %s is Phi == %v",
-					v.Module(), callArg,
-					&migo.Parameter{Caller: callArg, Callee: param})
+			if _, isPhi := arg.(*ssa.Phi); isPhi {
+				v.Warnf("%s Undefined argument %s is Phi ⇔ %v",
+					v.Module(), arg,
+					&migo.Parameter{Caller: arg, Callee: param})
 			} else {
-				v.Warnf("%s Argument %v undefined → nil chan.\n\t%s",
-					v.Module(), callArg, v.Env.getPos(callArg))
+				field, isField := arg.(structs.SField)
+				if isField && field.Key != nil {
+					// Is field and is defined.
+				} else {
+					v.Warnf("%s Argument %v undefined → nil chan.\n\t%s",
+						v.Module(), arg, v.Env.getPos(arg))
+					if isField && !isDefinedMiGoName(v, field) {
+						v.MiGo.AddStmts(migoNilChan(v, field))
+					} else if !isDefinedMiGoName(v, arg) {
+						v.MiGo.AddStmts(migoNilChan(v, arg))
+					}
+				}
 			}
 		case *chans.Chan:
 			if exported := v.FindExported(v.Context, ch); exported != nil {
-				callArg = exported
+				arg = exported
 			}
 		}
-		return &migo.Parameter{Caller: callArg, Callee: param}
+		return &migo.Parameter{Caller: arg, Callee: param}
 	}
 
 	var migoParams []*migo.Parameter

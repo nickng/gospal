@@ -691,8 +691,8 @@ func (v *Instruction) bindCallParameters(call *funcs.Call, fn *Function) {
 			v.MiGo.AddStmts(migoNewChan(arg, calleeChan))
 			v.Export(arg)
 		case store.MockValue:
-			// nilchan parameter is handled by creating a nilchan using arg.
-			v.MiGo.AddStmts(migoNilChan(arg))
+			// nilchan argument handling is delayed at migo generation time.
+			// See paramsToMigoParam()
 		}
 	}
 
@@ -717,21 +717,20 @@ func (v *Instruction) bindCallParameters(call *funcs.Call, fn *Function) {
 				paramStruct = structs.New(mock, arg.(ssa.Value))
 			}
 			argFields := argStruct.(*structs.Struct).Expand()
-			paramFields := paramStruct.(*structs.Struct).Expand()
+			prmFields := paramStruct.(*structs.Struct).Expand()
 			for i := 0; i < len(argFields); i++ {
 				switch argField := argFields[i].(type) {
 				case structs.SField:
-					paramField := paramFields[i].(structs.SField)
-					if isChan(argFields[i]) {
-						// This is really nil and not MockValue.
-						if argField.Key == nil && paramField.Key != nil {
-							handleNilChanArg(argField, paramFields[i].(structs.SField).Key) // Use actual param.
-						}
+					prmField := prmFields[i].(structs.SField)
+					if isChan(argField) && argField.Key == nil && prmField.Key != nil {
+						// Handle nil channel:
+						// argField is !defined, prmField is defined (in body).
+						handleNilChanArg(argField, prmField.Key)
 					}
 					// Field defined inside function, add defined value and
 					// update struct.Fields
-					if argField.Key == nil && paramField.Key != nil {
-						v.Put(argField, fn.Get(paramField.Key))
+					if argField.Key == nil && prmField.Key != nil {
+						v.Put(argField, fn.Get(prmField.Key))
 						argField.Struct.Fields[argField.Index] = argField
 					}
 				case *structs.Struct:
