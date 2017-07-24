@@ -146,27 +146,24 @@ func migoRecv(v *Instruction, local store.Key, ch store.Value) migo.Statement {
 			return &migo.RecvStatement{Chan: nc.Name()}
 		}
 	}
-	if _, ok := ch.(store.MockValue); !ok {
-		switch param := v.FindExported(v.Context, ch).(type) {
-		case Unexported:
-			v.Warnf("%s Channel %s/%s not exported in current scope\n\t%s",
-				v.Module(), local.Name(), ch.UniqName(), v.Env.getPos(local))
-			return &migo.RecvStatement{Chan: param.Name()}
-		default:
-			v.Debugf("%s Receive %s==%s ↦ %s\t%s",
-				v.Module(), local.Name(), param.Name(), ch.UniqName(), local.Type())
-			return &migo.RecvStatement{Chan: param.Name()}
+	if u, ok := local.(*ssa.UnOp); ok && u.Op == token.MUL { // Deref
+		// Use deref'd versions: u.X ⇒ local, v.Get(u.X) ⇒ ch instead.
+		local, ch = u.X, v.Get(u.X)
+	}
+	switch exported := v.FindExported(v.Context, ch).(type) {
+	case Unexported:
+		v.Warnf("%s Channel %s/%s unavail. in current scope (unexported)\n\t%s",
+			v.Module(), local.Name(), ch.UniqName(), v.Env.getPos(local))
+		if _, isField := local.(structs.SField); !isField { // If not defined as a struct-field.
+			v.MiGo.AddStmts(migoNilChan(v, local))
 		}
+		return &migo.RecvStatement{Chan: local.Name()}
+	default:
+		// Channel exists and exported: this is the name we want to receive.
+		v.Debugf("%s Receive %s⇔%s ↦ %s\t%s",
+			v.Module(), local.Name(), exported.Name(), ch.UniqName(), local.Type())
+		return &migo.RecvStatement{Chan: exported.Name()}
 	}
-	v.Warnf("%s Receive unknown-channel %s\n\t%s\n",
-		v.Module(), ch.UniqName(), v.Env.getPos(local))
-	if u, ok := local.(*ssa.UnOp); ok && u.Op == token.MUL {
-		local = v.FindExported(v.Context, v.Get(u.X))
-	}
-	if _, ok := local.(structs.SField); !ok { // If not defined as a struct-field.
-		v.MiGo.AddStmts(migoNilChan(local))
-	}
-	return &migo.RecvStatement{Chan: local.Name()}
 }
 
 // migoSend returns a Send Statement in MiGo.
@@ -179,27 +176,24 @@ func migoSend(v *Instruction, local store.Key, ch store.Value) migo.Statement {
 			return &migo.SendStatement{Chan: nc.Name()}
 		}
 	}
-	if _, ok := ch.(store.MockValue); !ok {
-		switch param := v.FindExported(v.Context, ch).(type) {
-		case Unexported:
-			v.Warnf("%s Channel %s/%s not exported in current scope\n\t%s",
-				v.Module(), local.Name(), ch.UniqName(), v.Env.getPos(local))
-			return &migo.SendStatement{Chan: param.Name()}
-		default:
-			v.Debugf("%s Send %s==%s ↦ %s\t%s",
-				v.Module(), local.Name(), param.Name(), ch.UniqName(), local.Type())
-			return &migo.SendStatement{Chan: param.Name()}
+	if u, ok := local.(*ssa.UnOp); ok && u.Op == token.MUL { // Deref
+		// Use deref'd versions: u.X ⇒ local, v.Get(u.X) ⇒ ch instead.
+		local, ch = u.X, v.Get(u.X)
+	}
+	switch exported := v.FindExported(v.Context, ch).(type) {
+	case Unexported:
+		v.Warnf("%s Channel %s/%s unavail. in current scope (unexported)\n\t%s",
+			v.Module(), local.Name(), ch.UniqName(), v.Env.getPos(local))
+		if _, isField := local.(structs.SField); !isField { // If not defined as a struct-field.
+			v.MiGo.AddStmts(migoNilChan(v, local))
 		}
+		return &migo.SendStatement{Chan: local.Name()}
+	default:
+		// Channel exists and exported: this is the name we want to send.
+		v.Debugf("%s Send %s⇔%s ↦ %s\t%s",
+			v.Module(), local.Name(), exported.Name(), ch.UniqName(), local.Type())
+		return &migo.SendStatement{Chan: exported.Name()}
 	}
-	v.Warnf("%s Send unknown-channel %s\n\t%s",
-		v.Module(), ch.UniqName(), v.Env.getPos(local))
-	if u, ok := local.(*ssa.UnOp); ok && u.Op == token.MUL {
-		local = v.FindExported(v.Context, v.Get(u.X))
-	}
-	if _, ok := local.(structs.SField); !ok { // If not defined as a struct-field.
-		v.MiGo.AddStmts(migoNilChan(local))
-	}
-	return &migo.SendStatement{Chan: local.Name()}
 }
 
 // isDefinedMiGoName checks that given name is defined.
