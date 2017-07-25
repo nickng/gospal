@@ -193,9 +193,20 @@ func (s *Struct) Expand() []store.Key {
 		case *types.Struct:
 			fieldType := structType.Field(i).Type().Underlying()
 			if structFieldType, ok := fieldType.(*types.Struct); ok {
+				var s *Struct
 				if field != nil {
-					// Field is a struct with predefined Field entry.
-					fields = append(fields, field.(*Struct).Expand()...)
+					if sfield, ok := field.(SField); ok {
+						if sfield.Key != nil {
+							// Need to unwrap field to get the struct.
+							s = sfield.Key.(*Struct)
+						}
+					} else {
+						// Field is a struct with predefined Field entry.
+						s = field.(*Struct)
+					}
+				}
+				if s != nil {
+					fields = append(fields, s.Expand()...)
 				} else {
 					// Field is a struct but not defined.
 					fields = append(fields, FromType(structFieldType).Expand()...)
