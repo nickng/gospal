@@ -30,8 +30,7 @@ func init() {
 
 // Test loading from files.
 func TestBuildFromFiles(t *testing.T) {
-	files := []string{"testdata/main.go", "testdata/foo.go", "testdata/bar.go"}
-	conf := build.FromFiles(files)
+	conf := build.FromFiles("testdata/main.go", "testdata/foo.go", "testdata/bar.go")
 	info, err := conf.Build()
 	if err != nil {
 		t.Errorf("SSA build failed: %v", err)
@@ -136,8 +135,7 @@ func TestAddBadPkg(t *testing.T) {
 
 func ExampleFromFiles() {
 	os.Chdir(testdir)
-	files := []string{"testdata/main.go", "testdata/foo.go", "testdata/bar.go"}
-	conf := build.FromFiles(files)
+	conf := build.FromFiles("testdata/main.go", "testdata/foo.go", "testdata/bar.go")
 	info, err := conf.Build()
 	if err != nil {
 		log.Fatalf("SSA build failed: %v", err)

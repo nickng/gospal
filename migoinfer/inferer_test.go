@@ -77,7 +77,7 @@ func TestPrimitives(t *testing.T) {
 				}
 			}
 			if len(filenames) > 0 {
-				info, err := build.FromFiles(filenames).Default().Build()
+				info, err := build.FromFiles(filenames...).Default().Build()
 				if err != nil {
 					t.Errorf("build failed: %v", err)
 				}

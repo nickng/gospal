@@ -50,7 +50,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	conf := build.FromFiles(flag.Args())
+	conf := build.FromFiles(flag.Args()...)
 	if defaultArgs {
 		conf = conf.Default()
 	}

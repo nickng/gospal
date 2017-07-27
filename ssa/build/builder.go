@@ -23,7 +23,7 @@ type FileSrc struct {
 }
 
 // FromFiles returns a non-nil Builder from a slice of filenames.
-func FromFiles(files []string) Configurer {
+func FromFiles(files ...string) Configurer {
 	return newConfig(&FileSrc{Files: files})
 }
 

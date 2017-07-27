@@ -46,7 +46,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	conf := build.FromFiles(flag.Args()).Default()
+	conf := build.FromFiles(flag.Args()...).Default()
 	switch logPath {
 	case "":
 	case "-":
