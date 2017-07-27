@@ -15,16 +15,16 @@ var (
 	ErrAbstractMeth = errors.New("interface method is abstract")
 )
 
-// MethWrongTypeError is the error when interface Iface with method Meth is
+// MethTypeError is the error when interface Iface with method Meth is
 // implemented as Impl with a wrong type.
 // See also go/types.MissingMethod.
-type MethWrongTypeError struct {
+type MethTypeError struct {
 	Iface *types.Interface // Interface to implement.
 	Meth  *types.Func      // Method of the interface.
 	Impl  *types.Func      // Implemented method.
 }
 
-func (e MethWrongTypeError) Error() string {
+func (e MethTypeError) Error() string {
 	return fmt.Sprintf("type error: %v (interface %v has method %s of type %s)",
 		e.Meth, e.Iface, e.Impl.Name(), e.Impl.Type())
 }
@@ -73,14 +73,14 @@ func LookupMethodImpl(prog *ssa.Program, meth *types.Func, impl ssa.Value) (*ssa
 	missing, wrongType := types.MissingMethod(impl.Type().Underlying(), iface, isIface)
 	if missing != nil {
 		if wrongType {
-			return nil, MethWrongTypeError{Iface: iface, Meth: meth, Impl: missing}
+			return nil, MethTypeError{Iface: iface, Meth: meth, Impl: missing}
 		}
 		return nil, MethNotFoundError{Meth: missing}
 	}
 
 	switch t := impl.(type) {
 	case *ssa.Call:
-		if fn := prog.LookupMethod(t.Type(), meth.Pkg(), meth.Name()); fn != nil {
+		if fn := prog.LookupMethod(getRealType(t), meth.Pkg(), meth.Name()); fn != nil {
 			return fn, nil
 		}
 		return nil, ErrAbstractMeth
