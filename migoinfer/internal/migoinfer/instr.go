@@ -432,11 +432,22 @@ func (v *Instruction) createDefinition(c *ssa.CallCommon) *funcs.Definition {
 		return nil
 	}
 	// Invoke mode.
-	impl := c.Value // Implementation struct/object.
-	implFn, err := fn.LookupMethodImpl(v.Env.Info.Prog, c.Method, impl)
+	// Calls method on an interface, we find the struct that implements the
+	// functions in the interface, by tracing back the MakeInterface instruction
+	// of the SSA register, but this can fail (e.g. determined at runtime)
+	//
+	// Meth: The method (of an interface) being called.
+	// Var:  The implementation variable - this may be an interface but
+	// LookupImpl will find the real underlying implementation variable.
+	v.Debugf("%s invoke call: %s, lookup function\n\tMeth:\t%s\n\tVar:\t%s\t%T",
+		v.Module(), c, c.Method, c.Value, c.Value,
+	)
+	implFn, err := fn.LookupImpl(v.Env.Info.Prog, c.Method, c.Value)
 	if err != nil {
-		v.Infof("%s Cannot find method %v for invoke call %s",
-			v.Module(), c, c.String())
+		v.Warnf("%s Cannot find method %v for invoke call: %v\n\tMeth: %s\n\tImpl: %s:%s",
+			v.Module(), c, err,
+			c.Method.String(),
+			c.Value.Name(), c.Value.Type().Underlying().String())
 		return nil // skip
 	}
 	def, ok := v.Get(implFn).(*funcs.Definition)
@@ -451,7 +462,7 @@ func (v *Instruction) createDefinition(c *ssa.CallCommon) *funcs.Definition {
 func (v *Instruction) doCall(c *ssa.Call, def *funcs.Definition) {
 	call := funcs.MakeCall(def, c.Common(), c)
 	if call == nil {
-		v.Infof("%s Skipping nil call %s", v.Module(), c.Common())
+		v.Warnf("%s Skipping nil call %s", v.Module(), c.Common())
 		return
 	}
 	v.Debugf("%s Definition: %v", v.Module(), def.String())
