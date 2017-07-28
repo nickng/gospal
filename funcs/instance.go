@@ -1,7 +1,6 @@
 package funcs
 
 import (
-	"bytes"
 	"fmt"
 	"sync"
 
@@ -58,24 +57,12 @@ func (i Instance) Name() string {
 	if i.call == nil {
 		return "_emptycall_"
 	}
-	var buf bytes.Buffer
-	if pkg := i.call.Function().Package(); pkg != nil {
-		// Package path is a free-form string, so quote it.
-		buf.WriteString(fmt.Sprintf("%s", pkg.Pkg.Path()))
-	}
-	buf.WriteString(fmt.Sprintf(".%s", i.call.Function().Name()))
-	return buf.String()
+	return string(i.Definition().getName())
 }
 
 func (i Instance) UniqName() string {
 	if i.call == nil {
 		return "_emptycall_"
 	}
-	var buf bytes.Buffer
-	if pkg := i.call.Function().Package(); pkg != nil {
-		// Package path is a free-form string, so quote it.
-		buf.WriteString(fmt.Sprintf("\"%s\"", pkg.Pkg.Path()))
-	}
-	buf.WriteString(fmt.Sprintf(".%s%d", i.call.Function().Name(), i.seq))
-	return buf.String()
+	return fmt.Sprintf("%s%d", string(i.Definition().getName()), i.seq)
 }

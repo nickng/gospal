@@ -117,11 +117,8 @@ func (c *Call) UniqName() string {
 func (c *Call) String() string {
 	var buf bytes.Buffer
 	buf.WriteString(fmt.Sprintf("funccall(%d): ", len(c.Parameters)))
-
-	if pkg := c.Function().Package(); pkg != nil {
-		buf.WriteString(fmt.Sprintf("\"%s\"", pkg.Pkg.Path()))
-	}
-	buf.WriteString(fmt.Sprintf(".%s ", c.Function().Name()))
+	buf.Write(c.Definition().getName())
+	buf.WriteRune(' ')
 
 	for i := 0; i < c.NParam(); i++ { // Parameters.
 		if i > 0 {

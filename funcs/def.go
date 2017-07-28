@@ -111,14 +111,25 @@ func (d *Definition) IsReturn(k store.Key) bool {
 	return false
 }
 
+// getName returns the function name as "package".function_name.
+func (d *Definition) getName() []byte {
+	var buf bytes.Buffer
+	if r := d.Function.Signature.Recv(); r != nil {
+		buf.WriteString(fmt.Sprintf("\"%s\".%s", r.Pkg().Path(), r.Name()))
+	} else {
+		if pkg := d.Function.Package(); pkg != nil {
+			buf.WriteString(fmt.Sprintf("\"%s\"", pkg.Pkg.Path()))
+		}
+	}
+	buf.WriteString(fmt.Sprintf(".%s", d.Function.Name()))
+	return buf.Bytes()
+}
+
 func (d *Definition) String() string {
 	var buf bytes.Buffer
 	buf.WriteString(fmt.Sprintf("func def(%d): ", len(d.Parameters)))
-
-	if pkg := d.Function.Package(); pkg != nil {
-		buf.WriteString(fmt.Sprintf("\"%s\"", pkg.Pkg.Path()))
-	}
-	buf.WriteString(fmt.Sprintf(".%s ", d.Function.Name()))
+	buf.Write(d.getName())
+	buf.WriteRune(' ')
 
 	for i := 0; i < d.NParam; i++ { // Parameters.
 		if i > 0 {
@@ -152,12 +163,7 @@ func (d *Definition) String() string {
 }
 
 func (d *Definition) UniqName() string {
-	var buf bytes.Buffer
-	if pkg := d.Function.Package(); pkg != nil {
-		buf.WriteString(fmt.Sprintf("\"%s\".", pkg.Pkg.Name()))
-	}
-	buf.WriteString(d.Function.Name())
-	return buf.String()
+	return string(d.getName())
 }
 
 // hasBody returns true if the function has body defined.
