@@ -450,6 +450,9 @@ func (v *Instruction) createDefinition(c *ssa.CallCommon) *funcs.Definition {
 			c.Value.Name(), c.Value.Type().Underlying().String())
 		return nil // skip
 	}
+	if implFn.Synthetic != "" {
+		implFn = fn.FindConcrete(v.Env.Info.Prog, implFn)
+	}
 	def, ok := v.Get(implFn).(*funcs.Definition)
 	if !ok {
 		def = funcs.MakeDefinition(implFn)
