@@ -59,8 +59,9 @@ func (e UnknownInvokeError) Error() string {
 		e.Iface, e.Impl, e.Impl.Type())
 }
 
-// LookupImpl finds concrete implementation Function of a given
-// interface/abstract type.
+// LookupImpl finds an implementation Function of a given interface/abstract type.
+// Return function is not guaranteed to be concrete, use FindConcrete on the
+// results to get a concrete function.
 func LookupImpl(prog *ssa.Program, meth *types.Func, impl ssa.Value) (*ssa.Function, error) {
 	if meth == nil {
 		return nil, ErrNilMeth
@@ -148,5 +149,54 @@ func fnBodyRetval(fn *ssa.Function) (retval ssa.Value) {
 			}
 		}
 	}
+	return
+}
+
+// FindConcrete finds the concrete version of a given ssa.Function by unwrapping
+// the synthetic wrappers of fn.
+func FindConcrete(prog *ssa.Program, fn *ssa.Function) *ssa.Function {
+	// If function not concrete.
+	if fn.Synthetic != "" {
+		if rawFn, wrapped := unwrapnilchk(fn); wrapped {
+			return rawFn
+		}
+		// TODO(nickng): should we findfunc here?
+	}
+	return fn
+}
+
+// findfunc returns a function if found in toplevel declaration.
+// Function matches if its package, name and type matches.
+func findfunc(prog *ssa.Program, fn *ssa.Function) *ssa.Function {
+	// Note: Member does not show methods directly.
+	for _, pkg := range prog.AllPackages() {
+		if pkg.Pkg == fn.Object().Pkg() {
+			for name, memb := range pkg.Members {
+				if membFn, ok := memb.(*ssa.Function); ok && name == fn.Object().Name() && types.Identical(memb.Type(), fn.Type()) {
+					return membFn
+				}
+			}
+		}
+	}
+	return fn
+}
+
+// unwrapnilchk is the reverse of ssa package's ssa:wrapnilchk intrinsics.
+func unwrapnilchk(fn *ssa.Function) (realFn *ssa.Function, wrapped bool) {
+	if fn.Synthetic != "" {
+		if len(fn.Blocks) == 1 && len(fn.Blocks[0].Instrs) > 1 {
+			if c, ok := fn.Blocks[0].Instrs[0].(*ssa.Call); ok {
+				if b, ok := c.Call.Value.(*ssa.Builtin); ok && b.Name() == "ssa:wrapnilchk" {
+					for _, instr := range fn.Blocks[0].Instrs[1:] {
+						if realCall, ok := instr.(*ssa.Call); ok {
+							realFn, wrapped = realCall.Call.StaticCallee(), true
+							return
+						}
+					}
+				}
+			}
+		}
+	}
+	realFn = fn
 	return
 }
