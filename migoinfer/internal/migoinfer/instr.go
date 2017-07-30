@@ -244,9 +244,8 @@ func (v *Instruction) VisitFieldAddr(instr *ssa.FieldAddr) {
 			}
 			struc.Fields[instr.Field] = instr
 		}
-	case *store.MockValue:
-		v.Debugf("%s struct undefined\n\t%s",
-			v.Module(), v.Env.getPos(instr))
+	case store.MockValue:
+		v.Debugf("%s struct undefined\n\t%s", v.Module(), v.Env.getPos(instr))
 	default:
 		v.Warnf("%s FieldAddr: %v is not a struct\t%s\n\t%s",
 			v.Module(), instr.X, instr.X.Type().Underlying(), v.Env.getPos(instr))
