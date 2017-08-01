@@ -108,7 +108,7 @@ func (c *Config) Build() (*ssa.Info, error) {
 		prog.Build()
 	} else {
 		for _, info := range lprog.AllPackages {
-			if reason, badPkg := c.badPkgs[info.Pkg.Name()]; badPkg {
+			if reason, badPkg := c.badPkgs[info.Pkg.Path()]; badPkg {
 				bldLog.Printf("Skip package: %s (%s)", info.Pkg.Name(), reason)
 				ignoredPkgs = append(ignoredPkgs, info.Pkg.Name())
 			} else {
