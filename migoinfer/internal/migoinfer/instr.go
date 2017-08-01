@@ -652,12 +652,11 @@ func (v *Instruction) getSelectCases(sel *ssa.Select) migo.Statement {
 // selBodyGuard returns the guard action of a select case (except for default).
 func (v *Instruction) selBodyGuard(sel *ssa.Select, caseIdx int) migo.Statement {
 	// Select guard actions then jump to body blocks
-	ch := v.FindExported(v.Context, v.Get(sel.States[caseIdx].Chan))
 	switch sel.States[caseIdx].Dir {
 	case types.SendOnly:
-		return migoSend(v, ch, v.Get(sel.States[caseIdx].Chan))
+		return migoSend(v, sel.States[caseIdx].Chan, v.Get(sel.States[caseIdx].Chan))
 	case types.RecvOnly:
-		return migoRecv(v, ch, v.Get(sel.States[caseIdx].Chan))
+		return migoRecv(v, sel.States[caseIdx].Chan, v.Get(sel.States[caseIdx].Chan))
 	default:
 		v.Fatalf("%s Select case is guarded by neither send nor receive.\n\t%s",
 			v.Module(), v.Env.getPos(sel))

@@ -136,8 +136,34 @@ func (n freshNilChan) String() string {
 	return fmt.Sprintf("[nilchan%d:%s]", n.count, n.Type().String())
 }
 
+// timeChan returns true if given ch is created by time.*.
+func timeChan(ch store.Key) bool {
+	isTimeFunc := func(c *ssa.Call) bool {
+		fn := c.Call.StaticCallee()
+		return fn != nil && fn.Pkg != nil && fn.Pkg.Pkg.Path() == "time"
+	}
+	switch instr := ch.(type) {
+	case *ssa.Call:
+		return isTimeFunc(instr)
+	case *ssa.UnOp:
+		if instr.Op == token.MUL {
+			if fa, ok := instr.X.(*ssa.FieldAddr); ok {
+				if c, ok := fa.X.(*ssa.Call); ok {
+					return isTimeFunc(c)
+				}
+			}
+		}
+	}
+	return false
+}
+
 // migoRecv returns a Receive Statement in MiGo.
 func migoRecv(v *Instruction, local store.Key, ch store.Value) migo.Statement {
+	if timeChan(local) {
+		v.Debugf("%s migo recv name=%v (time chan, replace with τ)", v.Module(), local)
+		return &migo.TauStatement{}
+	}
+
 	v.Debugf("%s migo recv name=%v, value=%s", v.Module(), local, ch.UniqName())
 	if c, ok := local.(*ssa.Const); ok {
 		if c.IsNil() {
