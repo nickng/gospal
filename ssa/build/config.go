@@ -131,5 +131,7 @@ func (c *Config) Build() (*ssa.Info, error) {
 func (c *Config) Default() Configurer {
 	return c.
 		AddBadPkg("reflect", "Reflection is not supported").
-		AddBadPkg("runtime", "Runtime is ignored for static analysis")
+		AddBadPkg("runtime", "Runtime is ignored for static analysis").
+		AddBadPkg("internal/singleflight", "Singleflight uses unsupported []chan").
+		AddBadPkg("fmt", "Fmt is known to cause unwanted recursive loops")
 }
