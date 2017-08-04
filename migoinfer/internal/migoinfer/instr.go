@@ -441,24 +441,28 @@ func (v *Instruction) createDefinition(c *ssa.CallCommon) *funcs.Definition {
 	v.Debugf("%s invoke call: %s, lookup function\n\tMeth:\t%s\n\tVar:\t%s\t%T",
 		v.Module(), c, c.Method, c.Value, c.Value,
 	)
-	implFn, err := fn.LookupImpl(v.Env.Info.Prog, c.Method, c.Value)
-	if err != nil {
-		v.Warnf("%s Cannot find method %v for invoke call: %v\n\tMeth: %s\n\tImpl: %s:%s",
-			v.Module(), c, err,
-			c.Method.String(),
-			c.Value.Name(), c.Value.Type().Underlying().String())
-		return nil // skip
+	if c.Value != nil {
+		implFn, err := fn.LookupImpl(v.Env.Info.Prog, c.Method, c.Value)
+		if err != nil {
+			v.Warnf("%s Cannot find method %v for invoke call: %v\n\tMeth: %s\n\tImpl: %s:%s",
+				v.Module(), c, err,
+				c.Method.String(),
+				c.Value.Name(), c.Value.Type().String())
+			return nil // skip
+		}
+		if implFn.Synthetic != "" {
+			implFn = fn.FindConcrete(v.Env.Info.Prog, implFn)
+		}
+		def, ok := v.Get(implFn).(*funcs.Definition)
+		if !ok {
+			def = funcs.MakeDefinition(implFn)
+			v.Put(implFn, def)
+		}
+		v.Debugf("%s ↳ invoke %s", v.Module(), def.String())
+		return def
 	}
-	if implFn.Synthetic != "" {
-		implFn = fn.FindConcrete(v.Env.Info.Prog, implFn)
-	}
-	def, ok := v.Get(implFn).(*funcs.Definition)
-	if !ok {
-		def = funcs.MakeDefinition(implFn)
-		v.Put(implFn, def)
-	}
-	v.Debugf("%s ↳ invoke %s", v.Module(), def.String())
-	return def
+	v.Debugf("%s definition not created: call impl is nil", v.Module())
+	return nil
 }
 
 func (v *Instruction) doCall(c *ssa.Call, def *funcs.Definition) {
