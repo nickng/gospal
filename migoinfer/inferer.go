@@ -12,6 +12,7 @@ import (
 	"github.com/nickng/gospal/ssa"
 	"github.com/nickng/gospal/store"
 	"github.com/nickng/migo"
+	"github.com/nickng/migo/transform"
 )
 
 // Inferer is the main MiGo inference entry point.
@@ -96,8 +97,19 @@ func (i *Inferer) Analyse() {
 			fnAnalyser.EnterFunc(fnDef.Function())
 		}
 	}
+	// Remove unrelated migo functions.
 	if !i.Raw {
-		i.Env.Prog.CleanUp()
+		for _, f := range i.Env.Prog.Funcs {
+			if i.EntryFunc == "" && f.SimpleName() == "main.main" {
+				transform.RemoveTauFuncs(i.Env.Prog, f)
+				transform.RemoveUndefined(i.Env.Prog)
+				break
+			} else if f.SimpleName() == i.EntryFunc {
+				transform.RemoveTauFuncs(i.Env.Prog, f)
+				transform.RemoveUndefined(i.Env.Prog)
+				break
+			}
+		}
 	}
 	if i.EntryFunc == "" { // main.main
 		// Print main.main first.
