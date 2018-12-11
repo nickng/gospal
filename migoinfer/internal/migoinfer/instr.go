@@ -177,6 +177,7 @@ func (v *Instruction) VisitAlloc(instr *ssa.Alloc) {
 			updater.PutUniq(instr, structs.New(v.Callee, instr))
 		}
 	default:
+		v.MiGo.AddStmts(migoNewMem(prefix(instr) + instr.Name()))
 		v.Debugf("%s Alloc %s = type %s (delay write)",
 			v.Module(), instr.Name(), t.String())
 	}
@@ -376,6 +377,7 @@ func (v *Instruction) VisitStore(instr *ssa.Store) {
 	val := v.Get(instr.Val)
 	if val != nil {
 		v.Put(instr.Addr, val)
+		v.MiGo.AddStmts(migoWrite(prefix(instr) + instr.Addr.Name()))
 	} else {
 		v.Fatalf("Store: %s is not defined", instr.Val.Name())
 	}
@@ -393,6 +395,7 @@ func (v *Instruction) VisitUnOp(instr *ssa.UnOp) {
 		if _, err := callctx.Deref(v.Context, instr.X, instr); err != nil {
 			v.Env.Errors <- errors.WithStack(err) // internal error.
 		}
+		v.MiGo.AddStmts(migoRead(prefix(instr) + instr.X.Name()))
 	default:
 		v.Debugf("%s UnOp", v.Module(), instr)
 	}
