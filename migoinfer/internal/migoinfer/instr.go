@@ -10,6 +10,7 @@ import (
 	"github.com/nickng/gospal/funcs"
 	"github.com/nickng/gospal/store"
 	"github.com/nickng/gospal/store/chans"
+	"github.com/nickng/gospal/store/mems"
 	"github.com/nickng/gospal/store/structs"
 	"github.com/nickng/migo"
 	"github.com/pkg/errors"
@@ -176,8 +177,11 @@ func (v *Instruction) VisitAlloc(instr *ssa.Alloc) {
 		if updater, ok := v.Context.(callctx.Updater); ok {
 			updater.PutUniq(instr, structs.New(v.Callee, instr))
 		}
+	case *types.Basic:
+		// Note: this only handles non-struct (flat) types.
+		newmem := v.newMem(instr)
+		v.MiGo.AddStmts(migoNewMem(newmem))
 	default:
-		v.MiGo.AddStmts(migoNewMem(prefix(instr) + instr.Name()))
 		v.Debugf("%s Alloc %s = type %s (delay write)",
 			v.Module(), instr.Name(), t.String())
 	}
@@ -376,8 +380,16 @@ func (v *Instruction) VisitSlice(instr *ssa.Slice) {
 func (v *Instruction) VisitStore(instr *ssa.Store) {
 	val := v.Get(instr.Val)
 	if val != nil {
-		v.Put(instr.Addr, val)
-		v.MiGo.AddStmts(migoWrite(prefix(instr) + instr.Addr.Name()))
+		if isChan(instr.Val) {
+			// if storing chan T to a *chan T type
+			// the destination *instr.Addr should use the original channel (instr.Val).
+			v.Put(instr.Addr, val)
+		} else {
+			// normal store
+			// keep instr.Addr pointing to originally declared Mem.
+			mem := v.Get(instr.Addr)
+			v.MiGo.AddStmts(migoWrite(mem))
+		}
 	} else {
 		v.Fatalf("Store: %s is not defined", instr.Val.Name())
 	}
@@ -392,10 +404,14 @@ func (v *Instruction) VisitUnOp(instr *ssa.UnOp) {
 	case token.ARROW:
 		v.MiGo.AddStmts(migoRecv(v, instr.X, v.Get(instr.X)))
 	case token.MUL:
-		if _, err := callctx.Deref(v.Context, instr.X, instr); err != nil {
-			v.Env.Errors <- errors.WithStack(err) // internal error.
+		if isPtrBasic(instr.X) {
+			mem := v.Get(instr.X)
+			v.MiGo.AddStmts(migoRead(mem))
+		} else {
+			if _, err := callctx.Deref(v.Context, instr.X, instr); err != nil {
+				v.Env.Errors <- errors.WithStack(err) // internal error.
+			}
 		}
-		v.MiGo.AddStmts(migoRead(prefix(instr) + instr.X.Name()))
 	default:
 		v.Debugf("%s UnOp", v.Module(), instr)
 	}
@@ -598,6 +614,17 @@ func (v *Instruction) newChan(ch ssa.Value) *chans.Chan {
 		v.Fatal("Cannot update context")
 	}
 	return newch
+}
+
+// newMem creates a new Mem for memory allocation as val.
+func (v *Instruction) newMem(val ssa.Value) *mems.Mem {
+	newmem := mems.New(v.Callee, val)
+	if u, ok := v.Context.(callctx.Updater); ok {
+		u.PutUniq(val, newmem)
+	} else {
+		v.Fatal("Cannot update context")
+	}
+	return newmem
 }
 
 const (

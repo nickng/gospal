@@ -1,37 +1,18 @@
 package migoinfer
 
 import (
-	"strings"
-
+	"github.com/nickng/gospal/store"
 	"github.com/nickng/migo"
-	"golang.org/x/tools/go/ssa"
 )
 
-func migoNewMem(name string) migo.Statement {
-	return &migo.NewMem{Name: name}
+func migoNewMem(mem store.Value) migo.Statement {
+	return &migo.NewMem{Name: mem.UniqName()}
 }
 
-func migoRead(name string) migo.Statement {
-	return &migo.MemRead{Name: name}
+func migoRead(mem store.Value) migo.Statement {
+	return &migo.MemRead{Name: mem.UniqName()}
 }
 
-func migoWrite(name string) migo.Statement {
-	return &migo.MemWrite{Name: name}
-}
-
-func prefix(instr ssa.Instruction) string {
-	var sb strings.Builder
-	if parent := instr.Parent(); parent != nil {
-		if pkg := parent.Package(); pkg != nil {
-			sb.WriteString(pkg.Pkg.Path())
-		} else {
-			sb.WriteString("_")
-		}
-		sb.WriteString(".")
-		sb.WriteString(parent.Name())
-	} else {
-		sb.WriteString("_")
-	}
-	sb.WriteString(".")
-	return sb.String()
+func migoWrite(mem store.Value) migo.Statement {
+	return &migo.MemWrite{Name: mem.UniqName()}
 }

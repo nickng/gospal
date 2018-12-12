@@ -21,6 +21,19 @@ func isChan(k store.Key) bool {
 	return false
 }
 
+// isPtrBasic returns true if k is a pointer to
+// primitive type (defined as "go/types".Basic).
+func isPtrBasic(k store.Key) bool {
+	switch t := k.Type().Underlying().(type) {
+	case *types.Pointer:
+		switch t.Elem().Underlying().(type) {
+		case *types.Basic:
+			return true
+		}
+	}
+	return false
+}
+
 func isStruct(k store.Key) bool {
 	switch t := k.Type().Underlying().(type) {
 	case *types.Struct:
