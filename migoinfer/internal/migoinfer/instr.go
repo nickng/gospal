@@ -11,7 +11,7 @@ import (
 	"github.com/nickng/gospal/store"
 	"github.com/nickng/gospal/store/chans"
 	"github.com/nickng/gospal/store/structs"
-	"github.com/nickng/migo"
+	"github.com/nickng/migo/v3"
 	"github.com/pkg/errors"
 	"golang.org/x/tools/go/ssa"
 )

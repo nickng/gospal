@@ -9,7 +9,7 @@ import (
 	"github.com/nickng/gospal/callctx"
 	"github.com/nickng/gospal/funcs"
 	"github.com/nickng/gospal/loop"
-	"github.com/nickng/migo"
+	"github.com/nickng/migo/v3"
 	"golang.org/x/tools/go/ssa"
 )
 

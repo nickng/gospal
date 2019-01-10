@@ -11,7 +11,8 @@ import (
 	"github.com/nickng/gospal/migoinfer/internal/migoinfer"
 	"github.com/nickng/gospal/ssa"
 	"github.com/nickng/gospal/store"
-	"github.com/nickng/migo"
+	"github.com/nickng/migo/v3"
+	"github.com/nickng/migo/v3/migoutil"
 )
 
 // Inferer is the main MiGo inference entry point.
@@ -97,7 +98,7 @@ func (i *Inferer) Analyse() {
 		}
 	}
 	if !i.Raw {
-		i.Env.Prog.CleanUp()
+		migoutil.SimplifyProgram(i.Env.Prog)
 	}
 	if i.EntryFunc == "" { // main.main
 		// Print main.main first.
