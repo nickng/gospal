@@ -3,6 +3,7 @@ package migoinfer
 import (
 	"go/token"
 	"go/types"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/nickng/gospal/callctx"
@@ -176,6 +177,9 @@ func (v *Instruction) VisitAlloc(instr *ssa.Alloc) {
 		v.Debugf("%s Allocate struct: %T", v.Module(), t)
 		if updater, ok := v.Context.(callctx.Updater); ok {
 			updater.PutUniq(instr, structs.New(v.Callee, instr))
+		}
+		if instr.Type().(*types.Pointer).Elem().String() == "sync.Mutex" {
+			v.MiGo.AddStmts(migoNewMutex(v.Get(instr)))
 		}
 	case *types.Basic:
 		// Note: this only handles non-struct (flat) types.
@@ -502,6 +506,15 @@ func (v *Instruction) doCall(c *ssa.Call, def *funcs.Definition) {
 		// Since the function does not have body,
 		// calling it will not produce migo definitions.
 		// Instead of trying to visit the function, skip over this.
+		return
+	}
+
+	if strings.Contains(call.Function().Name(), "Lock") {
+		v.MiGo.AddStmts(migoLock(v.Get(call.Args[0])))
+		return
+	}
+	if strings.Contains(call.Function().Name(), "Unlock") {
+		v.MiGo.AddStmts(migoUnlock(v.Get(call.Args[0])))
 		return
 	}
 

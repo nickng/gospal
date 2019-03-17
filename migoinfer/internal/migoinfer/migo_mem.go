@@ -16,3 +16,15 @@ func migoRead(mem store.Value) migo.Statement {
 func migoWrite(mem store.Value) migo.Statement {
 	return &migo.MemWrite{Name: mem.UniqName()}
 }
+
+func migoNewMutex(mu store.Value) migo.Statement {
+	return &migo.NewSyncMutex{Identifier: mu.UniqName()}
+}
+
+func migoLock(mu store.Value) migo.Statement {
+	return &migo.SyncMutexLock{Identifier: mu.UniqName()}
+}
+
+func migoUnlock(mu store.Value) migo.Statement {
+	return &migo.SyncMutexUnlock{Identifier: mu.UniqName()}
+}
