@@ -6,14 +6,13 @@ import (
 	"go/token"
 	"go/types"
 
-	"golang.org/x/tools/go/ssa"
-
 	"github.com/nickng/gospal/callctx"
 	"github.com/nickng/gospal/funcs"
 	"github.com/nickng/gospal/store"
 	"github.com/nickng/gospal/store/chans"
 	"github.com/nickng/gospal/store/structs"
 	"github.com/nickng/migo/v3"
+	"golang.org/x/tools/go/ssa"
 )
 
 // MiGo specific helpers.

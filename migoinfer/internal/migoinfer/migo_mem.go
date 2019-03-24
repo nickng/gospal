@@ -18,13 +18,13 @@ func migoWrite(mem store.Value) migo.Statement {
 }
 
 func migoNewMutex(mu store.Value) migo.Statement {
-	return &migo.NewSyncMutex{Identifier: mu.UniqName()}
+	return &migo.NewSyncMutex{Name: mu.UniqName()}
 }
 
 func migoLock(mu store.Value) migo.Statement {
-	return &migo.SyncMutexLock{Identifier: mu.UniqName()}
+	return &migo.SyncMutexLock{Name: mu.UniqName()}
 }
 
 func migoUnlock(mu store.Value) migo.Statement {
-	return &migo.SyncMutexUnlock{Identifier: mu.UniqName()}
+	return &migo.SyncMutexUnlock{Name: mu.UniqName()}
 }
