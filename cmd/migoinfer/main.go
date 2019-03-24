@@ -75,7 +75,7 @@ func main() {
 	}
 	inferer.SetOutput(os.Stdout)
 	if showRaw {
-		inferer.Raw = true
+		inferer.Raw = false
 	}
 	inferer.Analyse()
 }
