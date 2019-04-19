@@ -28,3 +28,15 @@ func migoLock(mu store.Value) migo.Statement {
 func migoUnlock(mu store.Value) migo.Statement {
 	return &migo.SyncMutexUnlock{Name: mu.UniqName()}
 }
+
+func migoNewRWMutex(mu store.Value) migo.Statement {
+	return &migo.NewSyncRWMutex{Name: mu.UniqName()}
+}
+
+func migoRLock(mu store.Value) migo.Statement {
+	return &migo.SyncRWMutexRLock{Name: mu.UniqName()}
+}
+
+func migoRUnlock(mu store.Value) migo.Statement {
+	return &migo.SyncRWMutexRUnlock{Name: mu.UniqName()}
+}

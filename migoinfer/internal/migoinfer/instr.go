@@ -3,7 +3,6 @@ package migoinfer
 import (
 	"go/token"
 	"go/types"
-	"strings"
 
 	"github.com/fatih/color"
 	"github.com/nickng/gospal/callctx"
@@ -170,6 +169,20 @@ func (v *Instruction) VisitInstr(instr ssa.Instruction) {
 	}
 }
 
+func typeIsMutex(t types.Type) bool {
+	if ptr, ok := t.(*types.Pointer); ok && ptr.Elem().String() == "sync.Mutex" {
+		return true
+	}
+	return false
+}
+
+func typeIsRWMutex(t types.Type) bool {
+	if ptr, ok := t.(*types.Pointer); ok && ptr.Elem().String() == "sync.RWMutex" {
+		return true
+	}
+	return false
+}
+
 func (v *Instruction) VisitAlloc(instr *ssa.Alloc) {
 	t := instr.Type().(*types.Pointer).Elem()
 	switch t := t.Underlying().(type) {
@@ -178,8 +191,11 @@ func (v *Instruction) VisitAlloc(instr *ssa.Alloc) {
 		if updater, ok := v.Context.(callctx.Updater); ok {
 			updater.PutUniq(instr, structs.New(v.Callee, instr))
 		}
-		if instr.Type().(*types.Pointer).Elem().String() == "sync.Mutex" {
+		if typeIsMutex(instr.Type()) {
 			v.MiGo.AddStmts(migoNewMutex(v.Get(instr)))
+		}
+		if typeIsRWMutex(instr.Type()) {
+			v.MiGo.AddStmts(migoNewRWMutex(v.Get(instr)))
 		}
 	case *types.Basic:
 		// Note: this only handles non-struct (flat) types.
@@ -509,13 +525,28 @@ func (v *Instruction) doCall(c *ssa.Call, def *funcs.Definition) {
 		return
 	}
 
-	if strings.Contains(call.Function().Name(), "Lock") {
-		v.MiGo.AddStmts(migoLock(v.Get(call.Args[0])))
-		return
-	}
-	if strings.Contains(call.Function().Name(), "Unlock") {
-		v.MiGo.AddStmts(migoUnlock(v.Get(call.Args[0])))
-		return
+	if def := call.Definition(); def.NParam > 0 {
+		switch {
+		case typeIsRWMutex(def.Param(0).Type()):
+			if call.Function().Name() == "RLock" {
+				v.MiGo.AddStmts(migoRLock(v.Get(call.Args[0])))
+				return
+			}
+			if call.Function().Name() == "RUnlock" {
+				v.MiGo.AddStmts(migoRUnlock(v.Get(call.Args[0])))
+				return
+			}
+			fallthrough
+		case typeIsMutex(def.Param(0).Type()):
+			if call.Function().Name() == "Lock" {
+				v.MiGo.AddStmts(migoLock(v.Get(call.Args[0])))
+				return
+			}
+			if call.Function().Name() == "Unlock" {
+				v.MiGo.AddStmts(migoUnlock(v.Get(call.Args[0])))
+				return
+			}
+		}
 	}
 
 	fn.EnterFunc(call.Function())
