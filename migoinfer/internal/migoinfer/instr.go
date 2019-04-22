@@ -200,6 +200,7 @@ func (v *Instruction) VisitAlloc(instr *ssa.Alloc) {
 	case *types.Basic:
 		// Note: this only handles non-struct (flat) types.
 		newmem := v.newMem(instr)
+		v.Export(newmem)
 		v.MiGo.AddStmts(migoNewMem(newmem))
 	default:
 		v.Debugf("%s Alloc %s = type %s (delay write)",
@@ -835,6 +836,9 @@ func (v *Instruction) bindCallParameters(call *funcs.Call, fn *Function) {
 					handleNilChanArg(arg, param)
 				}
 			}
+		}
+		if isPtrBasic(arg) {
+			v.Export(arg)
 		}
 	}
 }

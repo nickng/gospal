@@ -10,6 +10,7 @@ import (
 	"github.com/nickng/gospal/funcs"
 	"github.com/nickng/gospal/store"
 	"github.com/nickng/gospal/store/chans"
+	"github.com/nickng/gospal/store/mems"
 	"github.com/nickng/gospal/store/structs"
 	"github.com/nickng/migo/v3"
 	"golang.org/x/tools/go/ssa"
@@ -291,6 +292,7 @@ func paramsToMigoParam(v *Instruction, fn *Function, call *funcs.Call) []*migo.P
 			if exported := v.FindExported(v.Context, ch); exported != nil {
 				arg = exported
 			}
+		case *mems.Mem:
 		}
 		return &migo.Parameter{Caller: arg, Callee: param}
 	}
@@ -334,6 +336,9 @@ func paramsToMigoParam(v *Instruction, fn *Function, call *funcs.Call) []*migo.P
 				v.Module(), arg.Type().String(), param.Type().String())
 		}
 		if isChan(arg) {
+			migoParams = append(migoParams, convertToMigoParam(arg, call.Definition().Param(i)))
+		}
+		if isPtrBasic(arg) {
 			migoParams = append(migoParams, convertToMigoParam(arg, call.Definition().Param(i)))
 		}
 	}

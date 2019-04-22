@@ -102,6 +102,8 @@ func (f *Function) exportParams() {
 					}
 				}
 			}
+		} else if isPtrBasic(param) {
+			f.Export(param)
 		}
 	}
 }
